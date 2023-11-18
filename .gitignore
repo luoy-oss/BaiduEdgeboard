@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+/.vs/opencv-baidu
+/opencv-baidu/x64/Debug
+/opencv-baidu.sln
+/opencv-baidu/opencv-baidu.vcxproj.user
+/opencv-baidu/opencv-baidu.vcxproj.filters
+/opencv-baidu/opencv-baidu.vcxproj
