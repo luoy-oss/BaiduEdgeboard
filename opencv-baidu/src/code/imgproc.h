@@ -60,6 +60,14 @@ void track_leftline(float pts_in[][2], int num, float pts_out[][2], int approx_n
 // 右边线跟踪中线
 void track_rightline(float pts_in[][2], int num, float pts_out[][2], int approx_num, float dist);
 
+// 清空图片
+void clear_image(image_t* img);
+
+// 绘制X
+void draw_x(image_t* img, int x, int y, int len, uint8_t value);
+
+// 绘制O
+void draw_o(image_t* img, int x, int y, int radius, uint8_t value);
 
 
 #endif //! __IMGPROC_H__

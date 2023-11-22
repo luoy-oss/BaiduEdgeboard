@@ -1,10 +1,26 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
-#include "../code/common.h"
-#include "../code/utils.h"
 #include "../code/headfile.h"
 #include "../code/imgproc.h"
+#include "../code/utils.h"
+#include "../code/common.h"
+
+#define COUT1(x) (std::cout<<(x)<<std::endl)
+#define COUT2(x,y) (std::cout<<(x)<<","<<(y)<<std::endl)
+
+extern float thres;                 // 二值化阈值，主要用于找起始点(边线使用自适应阈值，不使用该阈值)
+extern float block_size;            // 自适应阈值的block大小
+extern float clip_value;            // 自适应阈值的阈值裁减量
+extern float begin_x;               // 起始点距离图像中心的左右偏移量
+extern float begin_y;               // 起始点距离图像底部的上下偏移量
+extern float line_blur_kernel;      // 边线三角滤波核的大小
+extern float pixel_per_meter;       // 俯视图中，每个像素对应的长度
+extern float sample_dist;           // 边线等距采样的间距
+extern float angle_dist;            // 计算边线转角时，三个计算点的距离
+extern float aim_distance;          // 预锚点长度
+extern float far_rate;              //
+extern bool adc_cross;              // 是否启用电感过十字
 
 extern image_t img_raw;
 extern image_t img_thres;
