@@ -2,14 +2,12 @@
 #include "common.h"
 #include <assert.h>
 #include <cmath>
+#include "headfile.h"
+
+extern "C" int clip(int x, int low, int up);
 
 #define AT                  AT_IMAGE
 #define AT_CLIP(img, x, y)  AT_IMAGE((img), clip((x), 0, (img)->width-1), clip((y), 0, (img)->height-1));
-//*******************************************
-//ipts开头的是原图左右边线    rpts0,s1透视变换边线   rpts0b,1b滤波边线  rpts0s,1s等距采样边线  0a,1a算角度
-//*******************************************
-extern int clip(int x, int low, int up);
-
 /* 前进方向定义：
  *   0
  * 3   1
@@ -36,18 +34,18 @@ void findline_lefthand_adaptive(image_t* img, int block_size, int clip_value, in
     int half = block_size / 2;//7x7区域左右
     int step = 0, dir = 0, turn = 0;//走过路径长度step 
     while (step < *num && half < x && x < img->width - half - 1 && half < y && y < img->height - half - 1 && turn < 4) {
-        int local_thres = 0;
-        for (int dy = -half; dy <= half; dy++) {
-            for (int dx = -half; dx <= half; dx++) {
-                local_thres += AT(img, x + dx, y + dy);
-            }
-        }
-        local_thres /= block_size * block_size;
-        local_thres -= clip_value;//自适应二值化
-
+        int local_thres = 140;
+        //for (int dy = -half; dy <= half; dy++) {
+        //    for (int dx = -half; dx <= half; dx++) {
+        //        local_thres += AT(img, x + dx, y + dy);
+        //    }
+        //}
+        //local_thres /= block_size * block_size;
+        //local_thres -= clip_value;//自适应二值化
         int current_value = AT(img, x, y);//当前灰度值x,y
         int front_value = AT(img, x + dir_front[dir][0], y + dir_front[dir][1]);//上方的灰度值
         int frontleft_value = AT(img, x + dir_frontleft[dir][0], y + dir_frontleft[dir][1]);//左前方的灰度值
+
         if (front_value < local_thres) {//先判断前方为墙,转过90度
             dir = (dir + 1) % 4;
             turn++;
@@ -80,19 +78,21 @@ void findline_righthand_adaptive(image_t* img, int block_size, int clip_value, i
     assert(block_size > 1 && block_size % 2 == 1);
     int half = block_size / 2;
     int step = 0, dir = 0, turn = 0;
+    
     while (step < *num && 0 < x && x < img->width - 1 && 0 < y && y < img->height - 1 && turn < 4) {
-        int local_thres = 0;
-        for (int dy = -half; dy <= half; dy++) {
-            for (int dx = -half; dx <= half; dx++) {
-                local_thres += AT(img, x + dx, y + dy);
-            }
-        }
-        local_thres /= block_size * block_size;
-        local_thres -= clip_value;
+        int local_thres = 140;
+        //for (int dy = -half; dy <= half; dy++) {
+        //    for (int dx = -half; dx <= half; dx++) {
+        //        local_thres += AT(img, x + dx, y + dy);
+        //    }
+        //}
+        //local_thres /= block_size * block_size;
+        //local_thres -= clip_value;
 
         int current_value = AT(img, x, y);
         int front_value = AT(img, x + dir_front[dir][0], y + dir_front[dir][1]);
         int frontright_value = AT(img, x + dir_frontright[dir][0], y + dir_frontright[dir][1]);
+
         if (front_value < local_thres) {
             dir = (dir + 3) % 4;
             turn++;

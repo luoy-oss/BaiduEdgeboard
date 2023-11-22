@@ -1,10 +1,7 @@
 #ifndef __IMGPROC_H__
 #define __IMGPROC_H__
 
-#include "common.h"
 #include <stdint.h>
-#include <opencv2/highgui.hpp> //OpenCV终端部署
-#include <opencv2/opencv.hpp>  //OpenCV终端部署
 
 typedef struct image {
     uint8_t* data;
@@ -18,11 +15,11 @@ typedef struct image {
         this->height = height;
         this->step = width;
     }
-    void MatClone(const cv::Mat frame) {
-        uint8_t* temp = (uint8_t*)malloc(sizeof(uint8_t) * ROWSIMAGE * COLSIMAGE);
+    //void MatClone(const cv::Mat frame) {
+    //    uint8_t* temp = (uint8_t*)malloc(sizeof(uint8_t) * ROWSIMAGE * COLSIMAGE);
 
-    }
-    
+    //}
+    //
 } image_t;
 
 typedef struct fimage {
@@ -37,7 +34,6 @@ typedef struct fimage {
 
 #define DEF_IMAGE(ptr, w, h)         {.data=ptr, .width=w, .height=h, .step=w}
 #define ROI_IMAGE(img, x1, y1, w, h) {.data=&AT_IMAGE(img, x1, y1), .width=w, .height=h, .step=img.width}
-
 
 // 左手巡线同时自适应二值化，从(x,y)开始向上沿白边线走
 void findline_lefthand_adaptive(image_t* img, int block_size, int clip_value, int x, int y, int pts[][2], int* num);

@@ -2,6 +2,7 @@
 #define __MAIN_H__
 
 #include "../code/common.h"
+#include "../code/utils.h"
 #include "../code/headfile.h"
 #include "../code/imgproc.h"
 
