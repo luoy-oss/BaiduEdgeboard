@@ -79,8 +79,8 @@ void run_cross() {
         //近角点过少，进入远线控制
         //COUT2(0.1 / sample_dist, Lpt0_rpts0s_id);
         if ((Xfound && 
-            //拐点距离车轮15厘米时，进入远线控制
-            (Lpt0_rpts0s_id < 0.3 / sample_dist || Lpt1_rpts1s_id < 0.3 / sample_dist))
+            //拐点距离车轮25厘米时，进入远线控制
+            (Lpt0_rpts0s_id < 0.5 / sample_dist || Lpt1_rpts1s_id < 0.5 / sample_dist))
             /* || (rpts1_num <30 && rpts0_num<30)*/) {
             cross_type = CROSS_IN;
         }

@@ -1,7 +1,7 @@
 #define CAR_DEBUGE
-#define CIRCLE_DEBUGE
+//#define CIRCLE_DEBUGE
 //#define CROSS_DEBUGE
-#define GARAGE_DEBUGE
+//#define GARAGE_DEBUGE
 #include "main.h"
 #include "../code/headfile.h"
 
@@ -49,6 +49,9 @@ bool adc_cross = false;
 
 Mat lineFrame;
 Mat nitoushi;
+
+Mat imageCorrect;
+void debuge_show();
 int main() {
 
 	Mat frame;
@@ -69,9 +72,13 @@ int main() {
 	while (1) {
 		//circle_type = CIRCLE_LEFT_IN;
 		//circle_type = CIRCLE_RIGHT_IN;
-				lineFrame = Mat::zeros(cv::Size(320, 240), CV_8UC1);
+		lineFrame = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		nitoushi = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		cap >> frame;
+#ifdef CAR_DEBUGE
+		imageCorrect = frame.clone();
+#endif 
+
 		//frame = imread("f4.jpg");
 		cvtColor(frame, frame, COLOR_BGR2GRAY);
 		threshold(frame, frame, 0, 255, THRESH_OTSU);
@@ -214,7 +221,7 @@ int main() {
 				//	// 当前是十字模式，同时启用了电感过十字，则不控制舵机
 				//}
 				//else {
-				//	//smotor1_control(servo_duty(SMOTOR1_CENTER + angle));
+				//	smotor1_control(servo_duty(SMOTOR1_CENTER + angle));
 				//}
 
 			}
@@ -229,17 +236,7 @@ int main() {
 		draw_circle();
 		draw_cross();
 #ifdef CAR_DEBUGE
-	#ifdef CIRCLE_DEBUGE
-		COUT1(circle_type);
-		if (circle_type == CIRCLE_NONE) {
-			COUT1("CIRCLE_NONE");
-		}
-	#endif
-	#ifdef CROSS_DEBUGE
-		if (cross_type == CROSS_NONE) {
-			COUT1("CROSS_NONE");
-		}
-	#endif
+		debuge_show();
 #endif
 		// 绘制道路线            
 		for (int i = 0; i < rpts0s_num; i++) {
@@ -271,4 +268,29 @@ int main() {
 		waitKey(1);
 	}
 	return 0;
+}
+
+void debuge_show() {
+	// 显示赛道识别类型
+	if (circle_type != CIRCLE_NONE) {
+		putText(imageCorrect, circle_type_name[circle_type], Point(10, 30),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 255, 0), 1,
+			LINE_AA);
+	}else if (cross_type != CROSS_NONE) {
+		putText(imageCorrect, cross_type_name[cross_type], Point(10, 30),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 255, 255), 1,
+			LINE_AA);
+	}
+	else {
+		putText(imageCorrect, "[1] Track", Point(10, 30),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
+
+
+
+
+	imshow("imageCorrect", imageCorrect);
+
+	
 }
