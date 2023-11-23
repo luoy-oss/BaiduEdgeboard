@@ -221,6 +221,16 @@ void find_corners() {
 void show_line() {
     //////////////////画线 2023年11月21日
     extern cv::Mat lineFrame;
+    //for (int c = 0; c < COLSIMAGE; c++) {
+    //    for (int r = 0; r < ROWSIMAGE; r++) {
+    //        if (AT_IMAGE(&img_raw, c, r) < 140) {
+    //            circle(lineFrame, Point(c, r), 1, Scalar(0, 0, 0));
+    //        }
+    //        else {
+    //            circle(lineFrame, Point(c, r), 1, Scalar(255, 255, 255));
+    //        }
+    //    }
+    //}
     for (int i = 0; i < ipts0_num; i++) {
         int x = ipts0[i][0];
         int y = ipts0[i][1];
@@ -247,7 +257,7 @@ void show_line() {
     }
     imshow("lineFrame", lineFrame);
 
-    // 绘制道路线            
+    // 绘制逆透视后的道路线            
     extern cv::Mat nitoushi;
     for (int c = 0; c < COLSIMAGE; c++) {
         for (int r = 0; r < ROWSIMAGE; r++) {

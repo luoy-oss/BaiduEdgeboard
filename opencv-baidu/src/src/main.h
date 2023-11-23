@@ -1,6 +1,11 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
+#define CAR_DEBUG
+//#define CIRCLE_DEBUG
+//#define CROSS_DEBUG
+//#define GARAGE_DEBUG
+
 #include "../code/headfile.h"
 #include "../code/imgproc.h"
 #include "../code/utils.h"

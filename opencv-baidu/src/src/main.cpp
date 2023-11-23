@@ -1,11 +1,8 @@
-#define CAR_DEBUGE
-//#define CIRCLE_DEBUGE
-//#define CROSS_DEBUGE
-//#define GARAGE_DEBUGE
 #include "main.h"
 #include "../code/headfile.h"
 
 #include "../code/common.h"
+#include "../code/pid.h"
 
 #include "../code/debugger.h"
 #include "../code/imgproc.h"
@@ -16,6 +13,17 @@
 #include "../recognition/circle_recognition.h"
 #include "../recognition/garage_recognition.h"
 using namespace cv;
+
+
+//舵机控制偏差
+float angle;
+
+Mat frame;			//RGB图像
+Mat lineFrame;		//原始赛道寻线
+Mat nitoushi;		//逆透视赛道线
+
+Mat imageCorrect;	//赛道元素
+
 
 //用户访问图像数据直接访问这个指针变量就可以
 //访问方式非常简单，可以直接使用下标的方式访问
@@ -47,16 +55,17 @@ float far_rate = 0.5;
 float aim_distance = 0.68;
 bool adc_cross = false;
 
-Mat lineFrame;
-Mat nitoushi;
+//↓↓↓↓↓extern pid_param_t servo_pid;
+pid_param_t servo_pid(1.5, 0, 1.0, 0.8, 15, 5, 15);
 
-Mat imageCorrect;
-void debuge_show();
+
+void debug_show();
 int main() {
 
-	Mat frame;
-	//VideoCapture cap(0);
-	VideoCapture cap("lx.mp4");
+	VideoCapture cap(0);
+	std::string video = "lx.mp4";
+	//video = "garage.mp4";
+	//VideoCapture cap(video);
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
 	//
@@ -75,7 +84,7 @@ int main() {
 		lineFrame = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		nitoushi = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		cap >> frame;
-#ifdef CAR_DEBUGE
+#ifdef CAR_DEBUG
 		imageCorrect = frame.clone();
 #endif 
 
@@ -105,26 +114,20 @@ int main() {
 		}
 		
 		// 车库斑马线检查(斑马线优先级高，最先检查)
-		//check_garage();
+		check_garage();
 
 		// 分别检查十字 三叉 和圆环, 十字优先级最高
-		if (true/*garage_type == GARAGE_NONE */)
+		if (garage_type == GARAGE_NONE)
 			check_cross();
-		if (/*garage_type == GARAGE_NONE && */cross_type == CROSS_NONE)
+		if (garage_type == GARAGE_NONE && cross_type == CROSS_NONE)
 			check_circle();
 		if (cross_type != CROSS_NONE) {
 			circle_type = CIRCLE_NONE;
 		}
 		//根据检查结果执行模式
-		if (cross_type != CROSS_NONE) {
-		//std::cout << "run cross: "<< std::endl;
-		//std::cout << "cross_type:"<< cross_type << std::endl;
-
-			run_cross();
-		}
 		if (cross_type != CROSS_NONE) run_cross();
 		if (circle_type != CIRCLE_NONE) run_circle();
-		//if (garage_type != GARAGE_NONE) run_garage();
+		if (garage_type != GARAGE_NONE) run_garage();
 		
 		// 中线跟踪
 		if (cross_type != CROSS_IN) {
@@ -151,11 +154,17 @@ int main() {
 			}
 		}
 
+		clear_image(&img_line);
 		{
 			// 车轮对应点(纯跟踪起始点)
-			float cx = mapx[COLSIMAGE / 2][(int)(ROWSIMAGE * 0.78f)];
-			float cy = mapy[COLSIMAGE / 2][(int)(ROWSIMAGE * 0.78f)];
-			
+			/*for (int r = 0; r < ROWSIMAGE; r++) {
+				if ((int)mapx[COLSIMAGE / 2][r] == 158) {
+					COUT1((r));
+				}
+			}*/
+			float cx = mapx[COLSIMAGE / 2][(int)(ROWSIMAGE * 0.65f)];
+			float cy = mapy[COLSIMAGE / 2][(int)(ROWSIMAGE * 0.65f)];
+			//draw_x(&img_line, cx, cy, 10, 255);
 			// 找最近点(起始点中线归一化)
 			float min_dist = 1e10;
 			int begin_id = -1;
@@ -170,7 +179,7 @@ int main() {
 			}
 		
 			// 特殊模式下，不找最近点(由于边线会绕一圈回来，导致最近点为边线最后一个点，从而中线无法正常生成)
-			if (/*garage_type == GARAGE_IN_LEFT || garage_type == GARAGE_IN_RIGHT || */cross_type == CROSS_IN) begin_id = 0;
+			if (garage_type == GARAGE_IN_LEFT || garage_type == GARAGE_IN_RIGHT || cross_type == CROSS_IN) begin_id = 0;
 			
 			// 中线有点，同时最近点不是最后几个点
 			if (begin_id >= 0 && rpts_num - begin_id >= 3) {
@@ -205,17 +214,20 @@ int main() {
 				// 根据偏差进行PD计算
 				//float angle = pid_solve(&servo_pid, error);
 
-				//// 纯跟踪算法(只考虑远点)
-				//float pure_angle = -atanf(pixel_per_meter * 2 * 0.2 * dx / dn / dn) / PI * 180 / SMOTOR_RATE;
-				//angle = pid_solve(&servo_pid, pure_angle);
-				//angle = MINMAX(angle, -14.5, 14.5);
-
+				// 纯跟踪算法(只考虑远点)
+				float pure_angle = atanf(pixel_per_meter * 2 * 0.2 * dx / dn / dn) / PI * 180 / (2.4);
+				angle = pid_solve(&servo_pid, pure_angle);
+				angle = MINMAX(angle, -14.5, 14.5);
+				//COUT2(pure_angle,angle);
+				int duty = (angle * 2 / 180 + 0.5) * 50000 * 50 / 1000;
+				double midadd = 1.0*(duty - 1250) / 9.8;
+				COUT1(midadd);
 				////非上坡电感控制,PD计算之后的值用于寻迹舵机的控制
 				//if (enable_adc) {
 				//	// 当前上坡模式，不控制舵机，同时清除所有标志
 				//	circle_type = CIRCLE_NONE;
 				//	cross_type = CROSS_NONE;
-				//	//garage_type = GARAGE_NONE;
+				//	garage_type = GARAGE_NONE;
 				//}
 				//else if (adc_cross && cross_type == CROSS_IN) {
 				//	// 当前是十字模式，同时启用了电感过十字，则不控制舵机
@@ -232,11 +244,10 @@ int main() {
 		
 		}
 
-		clear_image(&img_line);
 		draw_circle();
 		draw_cross();
-#ifdef CAR_DEBUGE
-		debuge_show();
+#ifdef CAR_DEBUG
+		debug_show();
 #endif
 		// 绘制道路线            
 		for (int i = 0; i < rpts0s_num; i++) {
@@ -264,13 +275,15 @@ int main() {
 
 
 		show_line();
-		imshow("frame", frame);
+#ifdef CAR_DEBUG
+		//imshow("frame", frame);
 		waitKey(1);
+#endif
 	}
 	return 0;
 }
 
-void debuge_show() {
+void debug_show() {
 	// 显示赛道识别类型
 	if (circle_type != CIRCLE_NONE) {
 		putText(imageCorrect, circle_type_name[circle_type], Point(10, 30),
@@ -281,7 +294,12 @@ void debuge_show() {
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 255, 255), 1,
 			LINE_AA);
 	}
-	else {
+	else if(garage_type != GARAGE_NONE){
+		COUT1(garage_type_name[garage_type]);
+		putText(imageCorrect, garage_type_name[garage_type], Point(10, 30),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 125, 70), 1,
+			LINE_AA);
+	}else {
 		putText(imageCorrect, "[1] Track", Point(10, 30),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型

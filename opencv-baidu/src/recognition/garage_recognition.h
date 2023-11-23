@@ -11,4 +11,14 @@ enum garage_type_e {
     GARAGE_NUM,
 };
 
+extern enum garage_type_e garage_type;
+
+extern const char* garage_type_name[GARAGE_NUM];
+
+void check_garage();
+
+void run_garage();
+
+void draw_garage();
+
 #endif // !__GARAGE_RECOGNITION_H__
