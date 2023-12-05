@@ -12,6 +12,13 @@
 #include "../recognition/cross_recognition.h"
 #include "../recognition/circle_recognition.h"
 #include "../recognition/garage_recognition.h"
+
+#ifdef _WIN32
+#include "SerialPort.h"
+#else
+#include "../code/uart.h"
+#endif
+
 using namespace cv;
 
 
@@ -45,7 +52,7 @@ float block_size = 7;
 float clip_value = 2;
 
 float begin_x = 15;
-float begin_y = 167; 
+float begin_y = 167;
 
 float line_blur_kernel = 7;
 float pixel_per_meter = 102;//平移像素，拟合中线
@@ -59,13 +66,46 @@ bool adc_cross = false;
 pid_param_t servo_pid(1.5, 0, 1.0, 0.8, 15, 5, 15);
 
 
+#ifdef _WIN32
+std::shared_ptr<CSerialPort> driver = nullptr; // 初始化串口驱动
+//串口发送函数Z
+void send(unsigned char temp[8]) {
+	driver->WriteData(temp, 8);//这个函数就是给串口发送数据的函数，temp就是要发送的数组。
+	temp[5] = 0;
+}
+#else
+std::shared_ptr<Driver> driver = nullptr; // 初始化串口驱动
+#endif
+double midAdd = 0.0;
 void debug_show();
 int main() {
+#ifndef _WIN32
+	// USB转串口的设备名为 /dev/ttyUSB0
+	driver = std::make_shared<Driver>("/dev/ttyUSB0", BaudRate::BAUD_115200);
+	if (driver == nullptr) {
+		std::cout << "Create Uart-Driver Error!" << std::endl;
+		return -1;
+	}
+	// 串口初始化，打开串口设备及配置串口数据格式
+	int ret = driver->open();
+	if (ret != 0) {
+		std::cout << "Uart Open failed!" << std::endl;
+		return -1;
+	}
+#else
+	////是否打开串口，3就是你外设连接电脑的com口，可以在设备管理器查看，然后更改这个参数
+	//if (!driver->InitPort(7, CBR_115200, 'N', 8, 1, EV_RXCHAR)) {
+	//	std::cout << "initPort fail !" << std::endl;
+	//}
+	//else {
+	//	std::cout << "initPort success !" << std::endl;
+	//}
+#endif
 
-	VideoCapture cap(0);
+	//VideoCapture cap(0);
 	std::string video = "lx.mp4";
 	//video = "garage.mp4";
-	//VideoCapture cap(video);
+	VideoCapture cap(video);
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
 	//
@@ -84,6 +124,7 @@ int main() {
 		lineFrame = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		nitoushi = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		cap >> frame;
+		frame = imread("f1.jpg");
 #ifdef CAR_DEBUG
 		imageCorrect = frame.clone();
 #endif 
@@ -112,7 +153,7 @@ int main() {
 		else if (rpts1s_num < 20 && rpts0s_num > rpts1s_num) {
 			track_type = TRACK_LEFT;
 		}
-		
+
 		// 车库斑马线检查(斑马线优先级高，最先检查)
 		check_garage();
 
@@ -128,7 +169,7 @@ int main() {
 		if (cross_type != CROSS_NONE) run_cross();
 		if (circle_type != CIRCLE_NONE) run_circle();
 		if (garage_type != GARAGE_NONE) run_garage();
-		
+
 		// 中线跟踪
 		if (cross_type != CROSS_IN) {
 			if (track_type == TRACK_LEFT) {
@@ -177,10 +218,10 @@ int main() {
 					begin_id = i;
 				}
 			}
-		
+
 			// 特殊模式下，不找最近点(由于边线会绕一圈回来，导致最近点为边线最后一个点，从而中线无法正常生成)
 			if (garage_type == GARAGE_IN_LEFT || garage_type == GARAGE_IN_RIGHT || cross_type == CROSS_IN) begin_id = 0;
-			
+
 			// 中线有点，同时最近点不是最后几个点
 			if (begin_id >= 0 && rpts_num - begin_id >= 3) {
 				// 归一化中线
@@ -217,11 +258,11 @@ int main() {
 				// 纯跟踪算法(只考虑远点)
 				float pure_angle = atanf(pixel_per_meter * 2 * 0.2 * dx / dn / dn) / PI * 180 / (2.4);
 				angle = pid_solve(&servo_pid, pure_angle);
-				angle = MINMAX(angle, -14.5, 14.5);
+				angle = MINMAX(angle, -17.5, 17.5);
 				//COUT2(pure_angle,angle);
 				int duty = (angle * 2 / 180 + 0.5) * 50000 * 50 / 1000;
-				double midadd = 1.0*(duty - 1250) / 9.8;
-				COUT1(midadd);
+				midAdd = 1.0 * (duty - 1250) / 4.4;
+				//COUT1(midAdd);
 				////非上坡电感控制,PD计算之后的值用于寻迹舵机的控制
 				//if (enable_adc) {
 				//	// 当前上坡模式，不控制舵机，同时清除所有标志
@@ -241,7 +282,7 @@ int main() {
 				// 中线点过少(出现问题)，则不控制舵机
 				rptsn_num = 0;
 			}
-		
+
 		}
 
 		draw_circle();
@@ -273,11 +314,24 @@ int main() {
 			draw_x(&img_line, rpts1s[Lpt1_rpts1s_id][0], rpts1s[Lpt1_rpts1s_id][1], 3, 255);
 		}
 
-
 		show_line();
 #ifdef CAR_DEBUG
 		//imshow("frame", frame);
 		waitKey(1);
+#endif
+
+#ifndef _WIN32
+		driver->carControl(4, midAdd); // 串口通信，姿态与速度控制
+#else
+		unsigned char sendData[8];
+		sendData[0] = 0x23;
+		sendData[2] = 0x00;
+		sendData[3] = 4;
+		sendData[4] = 0x00;
+		sendData[5] = 0x00;
+		sendData[6] = 0x00;
+		sendData[7] = 0x21;
+		//driver->WriteData(sendData, 8);//这个函数就是给串口发送数据的函数，sendData就是要发送的数组
 #endif
 	}
 	return 0;
@@ -289,17 +343,19 @@ void debug_show() {
 		putText(imageCorrect, circle_type_name[circle_type], Point(10, 30),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 255, 0), 1,
 			LINE_AA);
-	}else if (cross_type != CROSS_NONE) {
+	}
+	else if (cross_type != CROSS_NONE) {
 		putText(imageCorrect, cross_type_name[cross_type], Point(10, 30),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 255, 255), 1,
 			LINE_AA);
 	}
-	else if(garage_type != GARAGE_NONE){
+	else if (garage_type != GARAGE_NONE) {
 		COUT1(garage_type_name[garage_type]);
 		putText(imageCorrect, garage_type_name[garage_type], Point(10, 30),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 125, 70), 1,
 			LINE_AA);
-	}else {
+	}
+	else {
 		putText(imageCorrect, "[1] Track", Point(10, 30),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
@@ -310,5 +366,5 @@ void debug_show() {
 
 	imshow("imageCorrect", imageCorrect);
 
-	
+
 }

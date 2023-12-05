@@ -124,15 +124,18 @@ void findline_righthand_adaptive(image_t* img, int block_size, int clip_value, i
 void blur_points(float pts_in[][2], int num, float pts_out[][2], int kernel) {
     assert(kernel % 2 == 1);
     int half = kernel / 2;
+    int n = 1;
     for (int i = 0; i < num; i++) {
         pts_out[i][0] = pts_out[i][1] = 0;
         for (int j = -half; j <= half; j++) {
             pts_out[i][0] += pts_in[clip(i + j, 0, num - 1)][0] * (half + 1 - abs(j));
             pts_out[i][1] += pts_in[clip(i + j, 0, num - 1)][1] * (half + 1 - abs(j));
+            n++;
         }
         pts_out[i][0] /= (2 * half + 2) * (half + 1) / 2;
         pts_out[i][1] /= (2 * half + 2) * (half + 1) / 2;//输出滤波后的数组
     }
+    cout << n << endl;
 }
 
 // 点集等距采样  使走过的采样前折线段的距离为`dist`

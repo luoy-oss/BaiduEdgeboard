@@ -11,8 +11,8 @@ enum circle_type_e circle_type = CIRCLE_NONE;
 const char* circle_type_name[CIRCLE_NUM] = {
         "CIRCLE_NONE",
         "CIRCLE_LEFT_BEGIN", "CIRCLE_RIGHT_BEGIN",
-        "CIRCLE_LEFT_RUNNING", "CIRCLE_RIGHT_RUNNING",
         "CIRCLE_LEFT_IN", "CIRCLE_RIGHT_IN",
+        "CIRCLE_LEFT_RUNNING", "CIRCLE_RIGHT_RUNNING",
         "CIRCLE_LEFT_OUT", "CIRCLE_RIGHT_OUT",
         "CIRCLE_LEFT_END", "CIRCLE_RIGHT_END",
 };
@@ -43,7 +43,7 @@ void run_circle() {
 
         //先丢左线后有线
         if (rpts0s_num < 0.2 / sample_dist) { none_left_line++; }//***右环经历一个左线丢失的过程--右侧边线点的数量
-        if (rpts0s_num > 1.0 / sample_dist && none_left_line > 2) {//***前面符合丢线并且线重新出现
+        if (/*rpts0s_num > 1.0 / sample_dist &&*/none_left_line > 2 && !is_straight0 && is_straight1) {//***前面符合丢线并且线重新出现
             have_left_line++;
             if (have_left_line > 1) {
                 circle_type = CIRCLE_LEFT_IN;//***进环
@@ -108,7 +108,7 @@ void run_circle() {
         //编码器打表过1/4圆   应修正为右线为转弯无拐点
         //COUT1(rpts0s_num);
         //左点数小于100
-        if (rpts0s_num < 100/*0.2 / sample_dist*/ && none_right_line > 3 && stdevRight > 40/*||
+        if (rpts0s_num < 100/*0.2 / sample_dist*/ && none_right_line > 1 && stdevRight > 40/*||
             current_encoder - circle_encoder >= ENCODER_PER_METER * (3.14 * 1 / 2)*/) {
             circle_type = CIRCLE_LEFT_RUNNING;
             none_right_line = 0;
@@ -121,7 +121,7 @@ void run_circle() {
 
         if (Lpt1_found) rpts1s_num = rptsc1_num = Lpt1_rpts1s_id;
         //外环拐点(右L点)
-        if (Lpt1_found && Lpt1_rpts1s_id < 0.4 / sample_dist) {
+        if (Lpt1_found && Lpt1_rpts1s_id < 0.65 / sample_dist) {
             circle_type = CIRCLE_LEFT_OUT;
         }
     }
@@ -151,7 +151,7 @@ void run_circle() {
 
         //先丢右线后有线
         if (rpts1s_num < 0.2 / sample_dist) { none_right_line++; }
-        if (rpts1s_num > 1.0 / sample_dist && none_right_line > 2) {
+        if (/*rpts1s_num > 1.0 / sample_dist &&*/ none_right_line > 2 && is_straight0 && !is_straight1) {
             have_right_line++;
             if (have_right_line > 1) {
                 circle_type = CIRCLE_RIGHT_IN;
@@ -192,7 +192,7 @@ void run_circle() {
 
             }
         }
-        
+
         if (v_slope.size() > 1) {
             double sum = accumulate(begin(v_slope), end(v_slope), 0.0);
             double mean = sum / v_slope.size(); // 均值
@@ -213,7 +213,7 @@ void run_circle() {
         }*/
         //编码器打表过1/4圆   应修正为左线为转弯无拐点
         //右点数小于100
-        if (rpts1s_num < 100/*0.2 / sample_dist*/ && none_left_line > 3 && stdevLeft > 40 /*||
+        if (rpts1s_num < 100/*0.2 / sample_dist*/ && none_left_line > 1 && stdevLeft > 40 /*||
             current_encoder - circle_encoder >= ENCODER_PER_METER * (3.14 * 1 / 2)*/) {
             circle_type = CIRCLE_RIGHT_RUNNING;
             none_left_line = 0;
@@ -226,7 +226,7 @@ void run_circle() {
 
         //外环存在拐点,可再加拐点距离判据(左L点)
         if (Lpt0_found) rpts0s_num = rptsc0_num = Lpt0_rpts0s_id;
-        if (Lpt0_found && Lpt0_rpts0s_id < 0.4 / sample_dist) {
+        if (Lpt0_found && Lpt0_rpts0s_id < 0.65 / sample_dist) {
             circle_type = CIRCLE_RIGHT_OUT;
         }
     }

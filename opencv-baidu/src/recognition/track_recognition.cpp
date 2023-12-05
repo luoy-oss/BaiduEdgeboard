@@ -84,7 +84,7 @@ void process_image() {
         findline_righthand_adaptive(&img_raw, block_size, clip_value, x2, y2, ipts1, &ipts1_num);
     }
     else ipts1_num = 0;
-    
+
     // 去畸变+透视变换（mapx，mapy，畸变坐标映射数组）
     for (int i = 0; i < ipts0_num; i++) {
         rpts0[i][0] = mapx[ipts0[i][1]][ipts0[i][0]];
