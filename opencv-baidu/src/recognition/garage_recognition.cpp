@@ -2,14 +2,14 @@
 #include "../code/camera_param.h"
 #include "../src/main.h"
 
-enum garage_type_e garage_type = GARAGE_NONE;// GARAGE_OUT_LEFT;
+enum garage_type_e garage_type = GARAGE_NONE;// GARAGE_OUT;
 
 const char* garage_type_name[GARAGE_NUM] = {
         "GARAGE_NONE",
-        "GARAGE_OUT_LEFT", "GARAGE_OUT_RIGHT",
-        "GARAGE_FOUND_LEFT", "GARAGE_FOUND_RIGHT",
-        "GARAGE_IN_LEFT", "GARAGE_IN_RIGHT",
-        "GARAGE_PASS_LEFT", "GARAGE_PASS_RIGHT",
+        "GARAGE_OUT",
+        "GARAGE_FOUND",
+        "GARAGE_IN",
+        "GARAGE_PASS",
         "GARAGE_STOP",
 };
 

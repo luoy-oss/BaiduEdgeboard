@@ -46,7 +46,7 @@ void run_circle() {
         if (/*rpts0s_num > 1.0 / sample_dist &&*/none_left_line > 2 && !is_straight0 && is_straight1) {//***前面符合丢线并且线重新出现
             have_left_line++;
             if (have_left_line > 1) {
-                circle_type = CIRCLE_LEFT_IN;//***进环
+                circle_type = CIRCLE_LEFT_RUNNING; CIRCLE_LEFT_IN;//***进环
                 none_left_line = 0;
                 have_left_line = 0;
             }
@@ -117,9 +117,10 @@ void run_circle() {
     }
     //正常巡线，寻外圆右线
     else if (circle_type == CIRCLE_LEFT_RUNNING) {
-        track_type = TRACK_RIGHT;
-
+        track_type = TRACK_LEFT;//TRACK_RIGHT;
+        aim_distance = 0.45;
         if (Lpt1_found) rpts1s_num = rptsc1_num = Lpt1_rpts1s_id;
+
         //外环拐点(右L点)
         if (Lpt1_found && Lpt1_rpts1s_id < 0.65 / sample_dist) {
             circle_type = CIRCLE_LEFT_OUT;
@@ -129,15 +130,55 @@ void run_circle() {
     else if (circle_type == CIRCLE_LEFT_OUT) {
         track_type = TRACK_LEFT;
 
+        double stdevRight = 0; // 边缘方差
+        if (rpts1s_num < ROWSIMAGE / 4) {
+            stdevRight = 1000;
+        }
+        vector<int> v_slope;
+        int step = 10; // size/10;
+        if (rpts1s_num > 60) {
+            for (int i = step; i < 60; i += step) {
+                if (rpts1s[i][0] - rpts1s[i - step][0]) {
+                    v_slope.push_back(
+                        (rpts1s[i][0] - rpts1s[i - step][0]) * 100 /
+                        (rpts1s[i][1] - rpts1s[i - step][1])
+                    );
+                }
+
+            }
+        }
+        else {
+            for (int i = step; i < rpts1s_num; i += step) {
+                if (rpts1s[i][0] - rpts1s[i - step][0]) {
+                    v_slope.push_back(
+                        (rpts1s[i][0] - rpts1s[i - step][0]) * 100 /
+                        (rpts1s[i][1] - rpts1s[i - step][1])
+                    );
+                }
+
+            }
+        }
+
+        if (v_slope.size() > 1) {
+            double sum = accumulate(begin(v_slope), end(v_slope), 0.0);
+            double mean = sum / v_slope.size(); // 均值
+            double accum = 0.0;
+            for_each(begin(v_slope), end(v_slope),
+                [&](const double d) { accum += (d - mean) * (d - mean); });
+
+            stdevRight = sqrt(accum / (v_slope.size() - 1)); // 方差
+        }
+        //COUT1(stdevRight);
+
         //右线为长直道
-        if (is_straight1) {
+        if (is_straight1 || stdevRight < 5) {
             circle_type = CIRCLE_LEFT_END;
         }
     }
     //走过圆环，寻右线
     else if (circle_type == CIRCLE_LEFT_END) {
         track_type = TRACK_RIGHT;
-
+        aim_distance = 0.82;
         //左线先丢后有
         if (rpts0s_num < 0.2 / sample_dist) { none_left_line++; }
         if (rpts0s_num > 1.0 / sample_dist && none_left_line > 3) {
@@ -154,7 +195,7 @@ void run_circle() {
         if (/*rpts1s_num > 1.0 / sample_dist &&*/ none_right_line > 2 && is_straight0 && !is_straight1) {
             have_right_line++;
             if (have_right_line > 1) {
-                circle_type = CIRCLE_RIGHT_IN;
+                circle_type = CIRCLE_RIGHT_RUNNING; CIRCLE_RIGHT_IN;
                 none_right_line = 0;
                 have_right_line = 0;
             }
@@ -222,8 +263,7 @@ void run_circle() {
     }
     //正常巡线，寻外圆左线
     else if (circle_type == CIRCLE_RIGHT_RUNNING) {
-        track_type = TRACK_LEFT;
-
+        track_type = TRACK_RIGHT;//TRACK_LEFT;
         //外环存在拐点,可再加拐点距离判据(左L点)
         if (Lpt0_found) rpts0s_num = rptsc0_num = Lpt0_rpts0s_id;
         if (Lpt0_found && Lpt0_rpts0s_id < 0.65 / sample_dist) {
@@ -234,16 +274,55 @@ void run_circle() {
     else if (circle_type == CIRCLE_RIGHT_OUT) {
         track_type = TRACK_RIGHT;
 
-        //左长度加倾斜角度  应修正左右线找到且为直线
-        //if((rpts1s_num >100 && !Lpt1_found))  {have_right_line++;}
-        if (is_straight0) {
+        double stdevLeft = 0; // 边缘方差
+        if (rpts0s_num < ROWSIMAGE / 4) {
+            stdevLeft = 1000;
+        }
+        vector<int> v_slope;
+        int step = 10; // size/10;
+        if (rpts0s_num > 60) {
+            for (int i = step; i < 60; i += step) {
+                if (rpts0s[i][0] - rpts0s[i - step][0]) {
+                    v_slope.push_back(
+                        (rpts0s[i][0] - rpts0s[i - step][0]) * 100 /
+                        (rpts0s[i][1] - rpts0s[i - step][1])
+                    );
+                }
+
+            }
+        }
+        else {
+            for (int i = step; i < rpts0s_num; i += step) {
+                if (rpts0s[i][0] - rpts0s[i - step][0]) {
+                    v_slope.push_back(
+                        (rpts0s[i][0] - rpts0s[i - step][0]) * 100 /
+                        (rpts0s[i][1] - rpts0s[i - step][1])
+                    );
+                }
+
+            }
+        }
+
+        if (v_slope.size() > 1) {
+            double sum = accumulate(begin(v_slope), end(v_slope), 0.0);
+            double mean = sum / v_slope.size(); // 均值
+            double accum = 0.0;
+            for_each(begin(v_slope), end(v_slope),
+                [&](const double d) { accum += (d - mean) * (d - mean); });
+
+            stdevLeft = sqrt(accum / (v_slope.size() - 1)); // 方差
+        }
+        //        COUT1(stdevLeft);
+                //左长度加倾斜角度  应修正左右线找到且为直线
+                //if((rpts1s_num >100 && !Lpt1_found))  {have_right_line++;}
+        if (is_straight0 || stdevLeft < 5) {
             circle_type = CIRCLE_RIGHT_END;
         }
     }
     //走过圆环，寻左线
     else if (circle_type == CIRCLE_RIGHT_END) {
         track_type = TRACK_LEFT;
-
+        aim_distance = 0.82;
         //左线先丢后有
         if (rpts1s_num < 0.2 / sample_dist) { none_right_line++; }
         if (rpts1s_num > 1.0 / sample_dist && none_right_line > 2) {

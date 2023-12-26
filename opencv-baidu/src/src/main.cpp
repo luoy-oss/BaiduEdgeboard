@@ -52,10 +52,10 @@ float block_size = 7;
 float clip_value = 2;
 
 float begin_x = 15;
-float begin_y = 167;
+float begin_y = 162;
 
-float line_blur_kernel = 7;
-float pixel_per_meter = 102;//平移像素，拟合中线
+float line_blur_kernel = 7;//原7
+float pixel_per_meter = 94;//平移像素，拟合中线
 float sample_dist = 0.02;
 float angle_dist = 0.2;
 float far_rate = 0.5;
@@ -76,8 +76,53 @@ void send(unsigned char temp[8]) {
 #else
 std::shared_ptr<Driver> driver = nullptr; // 初始化串口驱动
 #endif
-double midAdd = 0.0;
+
+long double bias_p = 0.0;
+long double bias_p_last = 0.0;
+long double bias_i = 0.0;
+long double bias_d = 0.0;
+long double ctr = 0.0;
+long double midAdd = 0.0;
+long double lastmidAdd = 0.0;
+double maxmA = -2333333;
+double minmA = 2333333;
 void debug_show();
+
+//1. 结构体类型定义
+typedef struct
+{
+	float LastP;    //上次估算协方差 初始化值为0.02     --e(ESTk-1)  上次协方差
+	float Now_P;    //当前估算协方差 初始化值为0        --预测e(ESTk) 当前估算协方差
+	float out;      //卡尔曼滤波器输出 初始化值为0
+	float Kg;       //卡尔曼增益 初始化值为0             --Kk
+	float Q;        //过程噪声协方差 初始化值为0.1
+	float R;        //观测噪声协方差 初始化值为0.543        --e(MEAk)  测量误差
+}KFP;
+
+static KFP KFP_height = { 0.02,0,1500,0,0.5,0.543 };
+
+
+/**
+ *卡尔曼滤波器
+ *@param KFP *kfp 卡尔曼结构体参数
+ *   float input 需要滤波的参数的测量值（即传感器的采集值）
+ *@return 滤波后的参数（最优值）
+ */
+float kalmanFilter(KFP* kfp, float input) {
+	//预测协方差方程：k时刻系统估算协方差 = k-1时刻的系统协方差 + 过程噪声协方差
+	kfp->Now_P = kfp->LastP + kfp->Q;
+
+	//卡尔曼增益方程：卡尔曼增益 = k1-1时刻系统估算协方差 / （k时刻系统估算协方差 + 观测噪声协方差）
+	kfp->Kg = kfp->Now_P / (kfp->Now_P + kfp->R);
+	//更新最优值方程：k时刻状态变量的最优值 = 状态变量的预测值 + 卡尔曼增益 * （测量值 - 状态变量的预测值）
+	kfp->out = kfp->out + kfp->Kg * (input - kfp->out);//因为这一次的预测值就是上一次的输出值
+	//更新协方差方程: 本次的系统协方差付给 kfp->LastP 威下一次运算准备。
+	kfp->LastP = (1 - kfp->Kg) * kfp->Now_P;
+
+	return kfp->out;
+}
+
+
 int main() {
 #ifndef _WIN32
 	// USB转串口的设备名为 /dev/ttyUSB0
@@ -93,19 +138,19 @@ int main() {
 		return -1;
 	}
 #else
-	////是否打开串口，3就是你外设连接电脑的com口，可以在设备管理器查看，然后更改这个参数
-	//if (!driver->InitPort(7, CBR_115200, 'N', 8, 1, EV_RXCHAR)) {
-	//	std::cout << "initPort fail !" << std::endl;
-	//}
-	//else {
-	//	std::cout << "initPort success !" << std::endl;
-	//}
+	//是否打开串口，3就是你外设连接电脑的com口，可以在设备管理器查看，然后更改这个参数
+	if (!driver->InitPort(7, CBR_115200, 'N', 8, 1, EV_RXCHAR)) {
+		std::cout << "initPort fail !" << std::endl;
+	}
+	else {
+		std::cout << "initPort success !" << std::endl;
+	}
 #endif
 
-	//VideoCapture cap(0);
+	VideoCapture cap(0);
 	std::string video = "lx.mp4";
 	//video = "garage.mp4";
-	VideoCapture cap(video);
+	//VideoCapture cap(video);
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
 	//
@@ -124,7 +169,9 @@ int main() {
 		lineFrame = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		nitoushi = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		cap >> frame;
-		frame = imread("f1.jpg");
+		static int i = 1;
+		std::string filename = "../frame/" + std::to_string(i++) + ".jpg";
+		imwrite(filename, frame);
 #ifdef CAR_DEBUG
 		imageCorrect = frame.clone();
 #endif 
@@ -139,7 +186,18 @@ int main() {
 		}*/
 		find_corners();
 		// 预瞄距离,动态效果更佳
-		aim_distance = 0.58;
+		//aim_distance = 0.68;
+
+		if (circle_type != CIRCLE_NONE) {
+			aim_distance = 0.47;
+		}
+		else if (cross_type != CROSS_NONE) {
+			aim_distance = 0.45;
+		}
+		else {
+			aim_distance = 0.5;
+		}
+
 		// 单侧线少，切换巡线方向  切外向圆
 		if (rpts0s_num < rpts1s_num / 2 && rpts0s_num < 60) {
 			track_type = TRACK_RIGHT;
@@ -153,6 +211,8 @@ int main() {
 		else if (rpts1s_num < 20 && rpts0s_num > rpts1s_num) {
 			track_type = TRACK_LEFT;
 		}
+
+		//std::cout<<track_type<<"\t"<<rpts0s_num<<","<<rpts1s_num<<std::endl;
 
 		// 车库斑马线检查(斑马线优先级高，最先检查)
 		check_garage();
@@ -198,14 +258,14 @@ int main() {
 		clear_image(&img_line);
 		{
 			// 车轮对应点(纯跟踪起始点)
-			/*for (int r = 0; r < ROWSIMAGE; r++) {
-				if ((int)mapx[COLSIMAGE / 2][r] == 158) {
-					COUT1((r));
-				}
-			}*/
-			float cx = mapx[COLSIMAGE / 2][(int)(ROWSIMAGE * 0.65f)];
-			float cy = mapy[COLSIMAGE / 2][(int)(ROWSIMAGE * 0.65f)];
-			//draw_x(&img_line, cx, cy, 10, 255);
+			// for (int r = 0; r < ROWSIMAGE; r++) {
+			// 	if ((int)mapx[COLSIMAGE / 2][r] == 161) {
+					// COUT2("r:" + to_string(r),mapy[COLSIMAGE / 2][r]);
+			// 	}
+			// }
+			float cx = mapx[COLSIMAGE / 2][164];
+			float cy = 230;
+			// draw_x(&img_line, cx, cy, 2, 255);
 			// 找最近点(起始点中线归一化)
 			float min_dist = 1e10;
 			int begin_id = -1;
@@ -220,10 +280,13 @@ int main() {
 			}
 
 			// 特殊模式下，不找最近点(由于边线会绕一圈回来，导致最近点为边线最后一个点，从而中线无法正常生成)
-			if (garage_type == GARAGE_IN_LEFT || garage_type == GARAGE_IN_RIGHT || cross_type == CROSS_IN) begin_id = 0;
+			if (garage_type == GARAGE_IN || cross_type == CROSS_IN) begin_id = 0;
 
 			// 中线有点，同时最近点不是最后几个点
 			if (begin_id >= 0 && rpts_num - begin_id >= 3) {
+
+
+
 				// 归一化中线
 				rpts[begin_id][0] = cx;
 				rpts[begin_id][1] = cy;
@@ -231,10 +294,11 @@ int main() {
 				resample_points(rpts + begin_id, rpts_num - begin_id, rptsn, &rptsn_num, sample_dist * pixel_per_meter);
 
 				// 远预锚点位置
-				int aim_idx = clip(round(aim_distance / sample_dist), 0, rptsn_num - 1);
+				int aim_idx = clip(begin_id + round(aim_distance / sample_dist), 0, rptsn_num - 1);
 				// 近预锚点位置
-				int aim_idx_near = clip(round(0.25 / sample_dist), 0, rptsn_num - 1);
+				int aim_idx_near = clip(begin_id + round(0.25 / sample_dist), 0, rptsn_num - 1);
 
+				draw_o(&img_line, rptsn[begin_id][0], rptsn[begin_id][1], 3, 255);
 				// 计算远锚点偏差值
 				float dx = rptsn[aim_idx][0] - cx;
 				float dy = cy - rptsn[aim_idx][1] + 0.2 * pixel_per_meter;
@@ -242,41 +306,59 @@ int main() {
 				float error = -atan2f(dx, dy) * 180 / PI;
 				assert(!isnan(error));
 
-				// 若考虑近点远点,可近似构造Stanley算法,避免撞路肩
-				// 计算近锚点偏差值
-				float dx_near = rptsn[aim_idx_near][0] - cx;
-				float dy_near = cy - rptsn[aim_idx_near][1] + 0.2 * pixel_per_meter;
-				float dn_near = sqrt(dx_near * dx_near + dy_near * dy_near);
-				float error_near = -atan2f(dx_near, dy_near) * 180 / PI;
-				assert(!isnan(error_near));
-
-				// 远近锚点综合考虑
-				//angle = pid_solve(&servo_pid, error * far_rate + error_near * (1 - far_rate));
-				// 根据偏差进行PD计算
-				//float angle = pid_solve(&servo_pid, error);
-
 				// 纯跟踪算法(只考虑远点)
-				float pure_angle = atanf(pixel_per_meter * 2 * 0.2 * dx / dn / dn) / PI * 180 / (2.4);
-				angle = pid_solve(&servo_pid, pure_angle);
-				angle = MINMAX(angle, -17.5, 17.5);
-				//COUT2(pure_angle,angle);
-				int duty = (angle * 2 / 180 + 0.5) * 50000 * 50 / 1000;
-				midAdd = 1.0 * (duty - 1250) / 4.4;
-				//COUT1(midAdd);
-				////非上坡电感控制,PD计算之后的值用于寻迹舵机的控制
-				//if (enable_adc) {
-				//	// 当前上坡模式，不控制舵机，同时清除所有标志
-				//	circle_type = CIRCLE_NONE;
-				//	cross_type = CROSS_NONE;
-				//	garage_type = GARAGE_NONE;
-				//}
-				//else if (adc_cross && cross_type == CROSS_IN) {
-				//	// 当前是十字模式，同时启用了电感过十字，则不控制舵机
-				//}
-				//else {
-				//	smotor1_control(servo_duty(SMOTOR1_CENTER + angle));
-				//}
+				long double pure_angle = atanl(pixel_per_meter * 2 * 0.2 * dx / dn / dn) / PI * 180 / 1.0;
+				// COUT1(pure_angle);
+				midAdd = (long double)(pure_angle * (125.0 / 22.5));
+				if (midAdd > 125) {
+					midAdd = 125;
+				}
+				else if (midAdd < -125) {
+					midAdd = -125;
+				}
 
+				bias_p = rptsn[aim_idx][0] - cx;
+				bias_d = bias_p - bias_p_last;
+				bias_p_last = bias_p;
+				// bias_i = 0.0;
+				for (int i = begin_id; i < aim_idx; i++) {
+					bias_i += rptsn[aim_idx][0] - cx;
+				}
+
+				static long double Kp = 8.3;
+				static long double Ki = 0.0007;
+				static long double Kd = 20;
+
+				// if(abs(bias_p) < 11){
+				// 	ctr = (long double)bias_p * 5.5 + (long double)bias_i * Ki + (long double)bias_d * Kd;
+				// }else{
+				// 	ctr = (long double)bias_p * 9.5/*9.5*/ + (long double)bias_i * Ki + (long double)bias_d * Kd;  
+				// }
+
+				long double P = (bias_p * bias_p) / 65 + 4.3;
+				// COUT1(P);
+				ctr = (long double)bias_p * P/*9.5*/ + (long double)bias_i * Ki + (long double)bias_d * Kd;
+				midAdd = 1500 - ctr;
+				// midAdd = kalmanFilter(&KFP_height, midAdd);
+				if (midAdd > 1800) {
+					midAdd = 1800;
+				}
+				if (midAdd < 1200) {
+					midAdd = 1200;
+				}
+				midAdd *= 3;
+
+				// bias_p = rptsn[aim_idx][0] - cx;
+				// bias_i += bias_p;
+				// bias_d = bias_p - bias_p_last;
+				// bias_p_last = bias_p;
+
+				// midAdd = bias_p;
+				// if (midAdd > 40) {
+				// 	midAdd = 40;
+				// }else if (midAdd < -40){
+				// 	midAdd = -40;
+				// }
 			}
 			else {
 				// 中线点过少(出现问题)，则不控制舵机
@@ -287,9 +369,6 @@ int main() {
 
 		draw_circle();
 		draw_cross();
-#ifdef CAR_DEBUG
-		debug_show();
-#endif
 		// 绘制道路线            
 		for (int i = 0; i < rpts0s_num; i++) {
 			AT_IMAGE(&img_line, clip(rpts0s[i][0], 0, img_line.width - 1),
@@ -314,14 +393,49 @@ int main() {
 			draw_x(&img_line, rpts1s[Lpt1_rpts1s_id][0], rpts1s[Lpt1_rpts1s_id][1], 3, 255);
 		}
 
-		show_line();
 #ifdef CAR_DEBUG
-		//imshow("frame", frame);
+		// static int i = 0;
+		// std::string file = "./frame/" + std::to_string(++i) + ".jpg";
+		// imwrite(file, imageCorrect);
+
+		debug_show();
+		show_line();
+		imshow("frame", frame);
 		waitKey(1);
 #endif
 
 #ifndef _WIN32
-		driver->carControl(4, midAdd); // 串口通信，姿态与速度控制
+		// driver->carControl(1, midAdd);	
+			// if(midAdd > 5){
+			// 	driver->carControl(2, midAdd); // 串口通信，姿态与速度控制
+			// }else{
+			// 	if(is_straight0 && is_straight1){
+			// 		driver->carControl(3, midAdd); // 串口通信，姿态与速度控制
+			// 	}
+			// 	else{
+			// 		driver->carControl(1, midAdd); // 串口通信，姿态与速度控制
+			// 	}
+			// }
+
+			//int speed = speed_control();
+			//driver->carControl(speed, midAdd);
+		if (abs(4500 - midAdd) > 500) {
+			if (circle_type == CIRCLE_LEFT_END || circle_type == CIRCLE_RIGHT_END) {
+				driver->carControl(1, midAdd); // 串口通信，姿态与速度控制
+			}
+			else {
+				driver->carControl(2, midAdd); // 串口通信，姿态与速度控制
+			}
+		}
+		else {
+			if (is_straight0 && is_straight1) {
+				driver->carControl(3, midAdd); // 串口通信，姿态与速度控制
+			}
+			else {
+				driver->carControl(1, midAdd); // 串口通信，姿态与速度控制
+			}
+		}
+
 #else
 		unsigned char sendData[8];
 		sendData[0] = 0x23;
@@ -331,7 +445,7 @@ int main() {
 		sendData[5] = 0x00;
 		sendData[6] = 0x00;
 		sendData[7] = 0x21;
-		//driver->WriteData(sendData, 8);//这个函数就是给串口发送数据的函数，sendData就是要发送的数组
+		driver->WriteData(sendData, 8);//这个函数就是给串口发送数据的函数，sendData就是要发送的数组
 #endif
 	}
 	return 0;
@@ -361,9 +475,69 @@ void debug_show() {
 			LINE_AA); // 显示赛道识别类型
 	}
 
+	{
+		putText(imageCorrect, "bias_p", Point(10, 60),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
 
+		putText(imageCorrect, std::to_string(bias_p), Point(100, 60),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
 
+	{
+		putText(imageCorrect, "bias_i", Point(10, 90),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
 
+		putText(imageCorrect, std::to_string(bias_i), Point(100, 90),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
+
+	{
+		putText(imageCorrect, "bias_d", Point(10, 120),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+
+		putText(imageCorrect, std::to_string(bias_d), Point(100, 120),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
+
+	{
+		putText(imageCorrect, "midAdd", Point(10, 150),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+
+		putText(imageCorrect, std::to_string(midAdd), Point(100, 150),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
+
+	if (is_straight0) {
+		putText(imageCorrect, "LStraight", Point(10, 170),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
+	else {
+		putText(imageCorrect, "LStraight", Point(10, 170),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
+	if (is_straight1) {
+		putText(imageCorrect, "RStraight", Point(150, 170),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
+	else {
+		putText(imageCorrect, "RStraight", Point(150, 170),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0), 1,
+			LINE_AA); // 显示赛道识别类型
+	}
+	static int ii = 1;
+	std::string filename = "../frame/imageCorrect" + std::to_string(ii++) + ".jpg";
+	imwrite(filename, imageCorrect);
 	imshow("imageCorrect", imageCorrect);
 
 

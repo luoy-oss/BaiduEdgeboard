@@ -74,13 +74,11 @@ void run_cross() {
         if (Lpt1_found) {
             rptsc1_num = rpts1s_num = Lpt1_rpts1s_id;
         }
-
-        aim_distance = 0.4;
         //近角点过少，进入远线控制
         //COUT2(0.1 / sample_dist, Lpt0_rpts0s_id);
         if ((Xfound &&
             //拐点距离车轮25厘米时，进入远线控制
-            (Lpt0_rpts0s_id < 0.75 / sample_dist || Lpt1_rpts1s_id < 0.75 / sample_dist))
+            (Lpt0_rpts0s_id < 0.5 / sample_dist || Lpt1_rpts1s_id < 0.5 / sample_dist))
             /* || (rpts1_num <30 && rpts0_num<30)*/) {
             cross_type = CROSS_IN;
         }
@@ -100,6 +98,9 @@ void run_cross() {
         else if (not_have_line > 0 && rpts1s_num < 5) { track_type = TRACK_RIGHT; }
         else if (not_have_line > 0 && rpts0s_num < 5) { track_type = TRACK_LEFT; }
 
+        if (track_type == TRACK_RIGHT && far_rpts1s[far_Lpt1_rpts1s_id][0] > 240) {
+            track_type = TRACK_LEFT;
+        }
     }
 }
 

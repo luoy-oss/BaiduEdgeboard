@@ -135,7 +135,6 @@ void blur_points(float pts_in[][2], int num, float pts_out[][2], int kernel) {
         pts_out[i][0] /= (2 * half + 2) * (half + 1) / 2;
         pts_out[i][1] /= (2 * half + 2) * (half + 1) / 2;//输出滤波后的数组
     }
-    cout << n << endl;
 }
 
 // 点集等距采样  使走过的采样前折线段的距离为`dist`

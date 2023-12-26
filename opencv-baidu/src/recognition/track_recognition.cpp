@@ -105,9 +105,9 @@ void process_image() {
 
     // 边线等距采样
     rpts0s_num = sizeof(rpts0s) / sizeof(rpts0s[0]);
-    resample_points(rpts0b, rpts0b_num, rpts0s, &rpts0s_num, sample_dist * pixel_per_meter);
+    resample_points(rpts0b, rpts0b_num, rpts0s, &rpts0s_num, 1.5 * sample_dist * pixel_per_meter);
     rpts1s_num = sizeof(rpts1s) / sizeof(rpts1s[0]);
-    resample_points(rpts1b, rpts1b_num, rpts1s, &rpts1s_num, sample_dist * pixel_per_meter);
+    resample_points(rpts1b, rpts1b_num, rpts1s, &rpts1s_num, 1.5 * sample_dist * pixel_per_meter);
 
     // 边线局部角度变化率
     local_angle_points(rpts0s, rpts0s_num, rpts0a, (int)round(angle_dist / sample_dist));
@@ -139,19 +139,22 @@ void find_corners() {
         int im1 = clip(i - (int)round(angle_dist / sample_dist), 0, rpts0s_num - 1);
         int ip1 = clip(i + (int)round(angle_dist / sample_dist), 0, rpts0s_num - 1);
         float conf = fabs(rpts0a[i]) - (fabs(rpts0a[im1]) + fabs(rpts0a[ip1])) / 2;//计算真实的角度
-
+        if (conf * 180 / PI > 50 && conf * 180 / PI < 140) {
+            std::cout << "左：" << conf * 180 / PI << std::endl;
+        }
+        
         //Y角点阈值
-        if (Ypt0_found == false && 30. / 180. * PI < conf && conf < 65. / 180. * PI && i < 0.8 / sample_dist) {
+        if (Ypt0_found == false && 30. / 180. * PI < conf && conf < 65. / 180. * PI && i < 1.2 / sample_dist) {
             Ypt0_rpts0s_id = i;
             Ypt0_found = true;
         }
         //L角点阈值
-        if (Lpt0_found == false && 70. / 180. * PI < conf && conf < 140. / 180. * PI && i < 0.8 / sample_dist) {//i < 0.8 / sample_dist 相当于让点在近处
+        if (Lpt0_found == false && 70. / 180. * PI < conf && conf < 140. / 180. * PI && i < 1.2 / sample_dist) {//i < 0.8 / sample_dist 相当于让点在近处
             Lpt0_rpts0s_id = i;
             Lpt0_found = true;
         }
         //长直道阈值
-        if (conf > 5. / 180. * PI && i < 1.0 / sample_dist) is_straight0 = false;//有角度大于5度的角度时候不是长直道
+        if (conf > 5. / 180. * PI && i < 1.5 / sample_dist) is_straight0 = false;//有角度大于5度的角度时候不是长直道
         if (Ypt0_found == true && Lpt0_found == true && is_straight0 == false) break;
     }
     for (int i = 0; i < rpts1s_num; i++) {
@@ -159,16 +162,19 @@ void find_corners() {
         int im1 = clip(i - (int)round(angle_dist / sample_dist), 0, rpts1s_num - 1);
         int ip1 = clip(i + (int)round(angle_dist / sample_dist), 0, rpts1s_num - 1);
         float conf = fabs(rpts1a[i]) - (fabs(rpts1a[im1]) + fabs(rpts1a[ip1])) / 2;
-        if (Ypt1_found == false && 30. / 180. * PI < conf && conf < 65. / 180. * PI && i < 0.8 / sample_dist) {
+        if (conf * 180 / PI > 50 && conf * 180 / PI < 140) {
+            std::cout << "右：" << conf * 180 / PI << std::endl;
+        }
+        if (Ypt1_found == false && 30. / 180. * PI < conf && conf < 65. / 180. * PI && i < 1.2 / sample_dist) {
             Ypt1_rpts1s_id = i;
             Ypt1_found = true;
         }
-        if (Lpt1_found == false && 70. / 180. * PI < conf && conf < 140. / 180. * PI && i < 0.8 / sample_dist) {
+        if (Lpt1_found == false && 70. / 180. * PI < conf && conf < 140. / 180. * PI && i < 1.2 / sample_dist) {
             Lpt1_rpts1s_id = i;
             Lpt1_found = true;
         }
 
-        if (conf > 5. / 180. * PI && i < 1.0 / sample_dist) is_straight1 = false;
+        if (conf > 5. / 180. * PI && i < 1.5 / sample_dist) is_straight1 = false;
 
         if (Ypt1_found == true && Lpt1_found == true && is_straight1 == false) break;
     }
@@ -243,19 +249,19 @@ void show_line() {
             cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(255, 255, 255));
         }
     }
-    for (int i = 0; i < ipts1_num; i++) {
-        int x = ipts1[i][0];
-        int y = ipts1[i][1];
-        int current_value = AT_IMAGE(&img_raw, x, y);//当前灰度值x,y
+    //for (int i = 0; i < ipts1_num; i++) {
+    //    int x = ipts1[i][0];
+    //    int y = ipts1[i][1];
+    //    int current_value = AT_IMAGE(&img_raw, x, y);//当前灰度值x,y
 
-        if (current_value < 140) {
-            cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(0, 0, 0));
-        }
-        else {
-            cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(255, 255, 255));
-        }
-    }
-    imshow("lineFrame", lineFrame);
+    //    if (current_value < 140) {
+    //        cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(0, 0, 0));
+    //    }
+    //    else {
+    //        cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(255, 255, 255));
+    //    }
+    //}
+    //imshow("lineFrame", lineFrame);
 
     // 绘制逆透视后的道路线            
     extern cv::Mat nitoushi;
