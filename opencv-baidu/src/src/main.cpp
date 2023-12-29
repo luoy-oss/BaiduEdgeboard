@@ -165,7 +165,7 @@ int main() {
 
 	//VideoCapture cap(0);
 	std::string video = "lx.mp4";
-	video = "./video/resultf1.mp4";
+	video = "./video/resultf2.mp4";
 	VideoCapture cap(video);
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);

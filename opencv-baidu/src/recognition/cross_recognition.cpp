@@ -150,31 +150,105 @@ void draw_cross() {
     }
 }
 
+double GetCoefficient(float x, float y[][2], int  n)
+{
+    int i = x;
+    int j = x;
+    double   a, e, f, q;
+    double  xx, yy;
+    xx = 0.0;   yy = 0.0;
+    for (; x < n + i; x++)
+    {
+        xx = xx + (double)x / n;
+        yy = yy + (double)y[(int)x][1] / n;
+    }
+    e = 0.0;   f = 0.0;
+    //    printf("xx == %lf , yy == %lf\n",xx,yy);
+    for (; j < n + i; j++)
+    {
+        q = j - xx;   e = e + q * q;
+        f = f + q * ((double)y[j][1] - yy);
+    }
+    a = f / e;
+    //printf("f == %lf   e == %lf   a == %lf\n",f,e,a);
+    return a;
+}
+
 void cross_farline() {
     int cross_width = 4;
     //    far_x1 = cross_width, far_x2 = img_raw.width -cross_width;
     far_y1 = 0, far_y2 = 0;
 
+    if (Lpt0_found) {
+        rptsc0_num = rpts0s_num = Lpt0_rpts0s_id;
+    }
+    if (Lpt1_found) {
+        rptsc1_num = rpts1s_num = Lpt1_rpts1s_id;
+    }
+    double k1 = GetCoefficient(rpts0s[0][1], rpts0s, rpts0s_num);
+    double k2 = GetCoefficient(rpts1s[0][1], rpts1s, rpts1s_num);
+    
+    if (isnan(k1) && isnan(k2)) {
+        COUT2("NAN", "NAN");
+    }
+    else if (isnan(k1)) {
+        COUT2("NAN", k2);
+    }
+    else if (isnan(k2)) {
+        COUT2(k1, "NAN");
+    }
+    else {
+        COUT2(k1, k2);
+    }
 
-    int x1 = img_raw.width / 2 - begin_x / 2, y1 = begin_y;
+    extern cv::Mat imageCorrect;
+    
+    int y1 = begin_y;
+    if (Lpt0_found) {
+        y1 = ipts0[Lpt0_rpts0s_id][1] - 5;
+    }
+    cv::circle(imageCorrect, cv::Point(far_x1, y1), 3, cv::Scalar(255, 245, 0));
+
     bool white_found = false;
+    int count = 0;
+        
     far_ipts0_num = sizeof(far_ipts0) / sizeof(far_ipts0[0]);
+    //左线垂直
+    if (isnan(k1)) {
+        count = 0;
 
-    //在begin_y向两边找黑线
-//    for(;x1>cross_width*2; x1--) 
-//    {
-//      if(AT_IMAGE(&img_raw, x1-1, y1) < low_thres) {
-//        far_x1 = x1 - cross_width;
-//        break;
-//      }   
-//    }
-    //全白  far_x1 = 0,从边界找
-    for (; y1 > 0; y1--) {
-        //先黑后白，先找white
-        if (AT_IMAGE(&img_raw, far_x1, y1) >= thres) { white_found = true; }
-        if (AT_IMAGE(&img_raw, far_x1, y1) < thres && (white_found || far_x1 == cross_width)) {
-            far_y1 = y1;
-            break;
+        //全白  far_x1 = 0,从边界找
+        for (; y1 > 56; y1--) {
+
+            MAT_AT_SET(imageCorrect, y1, far_x1, 255, 245, 0);
+            
+            //先黑后白，先找white
+            if (AT_IMAGE(&img_raw, far_x1, y1) >= thres) { white_found = true; }
+            if (AT_IMAGE(&img_raw, far_x1, y1) < thres && (white_found || far_x1 == cross_width)) {
+                far_y1 = y1;
+                break;
+            }
+        }
+    }
+    else {
+        count = 0;
+
+        //全白  far_x1 = 0,从边界找
+        for (; y1 > 56; y1--) {
+            if (abs(k1) > 10 && count++ > abs(k1)) {
+                count = 0;
+                far_x1 += k1 / 10;
+            }
+            
+            
+            MAT_AT_SET(imageCorrect, y1, far_x1, 255, 245, 0);
+            
+            //先黑后白，先找white
+            if (AT_IMAGE(&img_raw, far_x1, y1) >= thres) { white_found = true; }
+            if (AT_IMAGE(&img_raw, far_x1, y1) < thres && (white_found || far_x1 == cross_width)) {
+                far_y1 = y1;
+                break;
+            }
         }
     }
 
@@ -183,28 +257,52 @@ void cross_farline() {
         findline_lefthand_adaptive(&img_raw, block_size, clip_value, far_x1, far_y1 + 1, far_ipts0, &far_ipts0_num);
     else far_ipts0_num = 0;
 
-    int x2 = img_raw.width / 2 + begin_x / 2, y2 = begin_y;
+    int y2 = begin_y;
+    if (Lpt1_found) {
+        y2 = ipts1[Lpt1_rpts1s_id][1] - 5;
+    }
+    cv::circle(imageCorrect, cv::Point(far_x2, y2), 3, cv::Scalar(255, 245, 0));
     white_found = false;
     far_ipts1_num = sizeof(far_ipts1) / sizeof(far_ipts1[0]);
+    count = 0;
 
-    //在begin_y向两边找黑线
-//    for(;x2<img_raw.width-cross_width*2; x2++) 
-//    {
-//      if(AT_IMAGE(&img_raw, x2+1, y2) < low_thres) {
-//        far_x2 = x2 + cross_width;
-//        break;
-//      }   
-//    }
-    //全白  far_x2 = 0,从边界找
-    for (; y2 > 0; y2--) {
-        //先黑后白，先找white
-        if (AT_IMAGE(&img_raw, far_x2, y2) >= thres) { white_found = true; }
-        if (AT_IMAGE(&img_raw, far_x2, y2) < thres && (white_found || far_x2 == img_raw.width - cross_width)) {
-            far_y2 = y2;
-            break;
+    //右线垂直
+    if (isnan(k2)) {
+        count = 0;
+
+        //全白  far_x2 = 0,从边界找
+        for (; y2 > 56; y2--) {
+            MAT_AT_SET(imageCorrect, y2, far_x2, 255, 245, 0);
+
+            //先黑后白，先找white
+            if (AT_IMAGE(&img_raw, far_x2, y2) >= thres) { white_found = true; }
+            if (AT_IMAGE(&img_raw, far_x2, y2) < thres && (white_found)) {
+                far_y2 = y2;
+                break;
+            }
         }
     }
+    else {
+        count = 0;
+        //全白  far_x2 = 0,从边界找
+        for (; y2 > 56; y2--) {
+            if (abs(k2)>10 && count++ > abs(k2)) {
+                count = 0;
+                far_x2 += k2 / 10;
+            }
+            MAT_AT_SET(imageCorrect, y2, far_x2, 255, 245, 0);
 
+            //先黑后白，先找white
+            if (AT_IMAGE(&img_raw, far_x2, y2) >= thres) { white_found = true; }
+            if (AT_IMAGE(&img_raw, far_x2, y2) < thres && (white_found)) {
+                far_y2 = y2;
+                break;
+            }
+        }
+    }
+    cv::waitKey(200);
+
+    
     //从找到角点位置开始寻找
     if (AT_IMAGE(&img_raw, far_x2, far_y2 + 1) >= thres)
         findline_righthand_adaptive(&img_raw, block_size, clip_value, far_x2, far_y2 + 1, far_ipts1, &far_ipts1_num);

@@ -134,10 +134,11 @@ extern double stdevRight;   // ±ßÔµ·½²î
 extern float radius;       // Ô²»¡°ë¾¶
 
 
-// extern long double bias_p;
+extern long double bias_p;
 // extern long double bias_p_last;
 extern long double bias_i;
 // extern long double bias_d;
+extern long double midAdd;
 
 
 
