@@ -4,6 +4,10 @@
 #include "../code/camera_param.h"
 #include "../code/imgproc.h"
 
+#include <vector>
+#include <numeric>
+using namespace std;
+
 // 原图左右边线
 int ipts0[POINTS_MAX_LEN][2];
 int ipts1[POINTS_MAX_LEN][2];
@@ -49,10 +53,14 @@ int Lpt0_rpts0s_id, Lpt1_rpts1s_id;
 bool Lpt0_found, Lpt1_found;
 
 // 长直道
-bool is_straight0, is_straight1;
+bool is_straight0 = false;
+bool is_straight1 = false;
 
 //// 弯道
 //bool is_turn0, is_turn1;
+
+double stdevLeft = 0; // 边缘方差
+double stdevRight = 0; // 边缘方差
 
 // 当前巡线模式
 enum track_type_e track_type = TRACK_RIGHT;
@@ -126,35 +134,130 @@ void process_image() {
     rptsc0_num = rpts0s_num;
     track_rightline(rpts1s, rpts1s_num, rptsc1, (int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
     rptsc1_num = rpts1s_num;
+
+
+    vector<int> v_slope;
+    int step = 10; // size/10;
+
+    if (rpts1s_num < ROWSIMAGE / 4) {
+        stdevRight = 1000;
+    }
+    if (rpts1s_num > 100) {
+        for (int i = step; i < 100; i += step) {
+            if (rpts1s[i][0] - rpts1s[i - step][0]) {
+                v_slope.push_back(
+                    (rpts1s[i][0] - rpts1s[i - step][0]) * 100 /
+                    (rpts1s[i][1] - rpts1s[i - step][1])
+                );
+            }
+
+        }
+    }
+    else {
+        for (int i = step; i < rpts1s_num; i += step) {
+            if (rpts1s[i][0] - rpts1s[i - step][0]) {
+                v_slope.push_back(
+                    (rpts1s[i][0] - rpts1s[i - step][0]) * 100 /
+                    (rpts1s[i][1] - rpts1s[i - step][1])
+                );
+            }
+
+        }
+    }
+
+    if (v_slope.size() > 1) {
+        double sum = accumulate(begin(v_slope), end(v_slope), 0.0);
+        double mean = sum / v_slope.size(); // 均值
+        double accum = 0.0;
+        for_each(begin(v_slope), end(v_slope),
+            [&](const double d) { accum += (d - mean) * (d - mean); });
+
+        stdevRight = sqrt(accum / (v_slope.size() - 1)); // 方差
+    }
+    else {
+        stdevRight = 1000;
+    }
+
+    if (rpts0s_num < ROWSIMAGE / 4) {
+        stdevLeft = 1000;
+    }
+
+    v_slope.clear();
+    if (rpts0s_num > 100) {
+        for (int i = step; i < 100; i += step) {
+            if (rpts0s[i][0] - rpts0s[i - step][0]) {
+                v_slope.push_back(
+                    (rpts0s[i][0] - rpts0s[i - step][0]) * 100 /
+                    (rpts0s[i][1] - rpts0s[i - step][1])
+                );
+            }
+
+        }
+    }
+    else {
+        for (int i = step; i < rpts0s_num; i += step) {
+            if (rpts0s[i][0] - rpts0s[i - step][0]) {
+                v_slope.push_back(
+                    (rpts0s[i][0] - rpts0s[i - step][0]) * 100 /
+                    (rpts0s[i][1] - rpts0s[i - step][1])
+                );
+            }
+
+        }
+    }
+
+    if (v_slope.size() > 1) {
+        double sum = accumulate(begin(v_slope), end(v_slope), 0.0);
+        double mean = sum / v_slope.size(); // 均值
+        double accum = 0.0;
+        for_each(begin(v_slope), end(v_slope),
+            [&](const double d) { accum += (d - mean) * (d - mean); });
+
+        stdevLeft = sqrt(accum / (v_slope.size() - 1)); // 方差
+    }
+    else {
+        stdevLeft = 1000;
+    }
+
+    if (stdevLeft <= 5 && rpts0s_num > 10) {
+        is_straight0 = true;
+    }
+    else {
+        is_straight0 = false;
+    }
+
+    if (stdevRight <= 5 && rpts1s_num > 10) {
+        is_straight1 = true;
+    }
+    else {
+        is_straight1 = false;
+    }
 }
 
 
 void find_corners() {
     // 识别Y,L拐点
     Ypt0_found = Ypt1_found = Lpt0_found = Lpt1_found = false;
-    is_straight0 = rpts0s_num > 1. / sample_dist;//1为米数相当于  等距采样后的点大于这点数量
-    is_straight1 = rpts1s_num > 1. / sample_dist;
+    //is_straight0 = rpts0s_num > 1.2 / sample_dist;//1为米数相当于  等距采样后的点大于这点数量
+    //is_straight1 = rpts1s_num > 1.2 / sample_dist;
     for (int i = 0; i < rpts0s_num; i++) {//左边线的处理
         if (rpts0an[i] == 0) continue;//非极大值抑制
         int im1 = clip(i - (int)round(angle_dist / sample_dist), 0, rpts0s_num - 1);
         int ip1 = clip(i + (int)round(angle_dist / sample_dist), 0, rpts0s_num - 1);
         float conf = fabs(rpts0a[i]) - (fabs(rpts0a[im1]) + fabs(rpts0a[ip1])) / 2;//计算真实的角度
-        if (conf * 180 / PI > 50 && conf * 180 / PI < 140) {
-            std::cout << "左：" << conf * 180 / PI << std::endl;
-        }
-        
+
         //Y角点阈值
         if (Ypt0_found == false && 30. / 180. * PI < conf && conf < 65. / 180. * PI && i < 1.2 / sample_dist) {
             Ypt0_rpts0s_id = i;
             Ypt0_found = true;
         }
         //L角点阈值
-        if (Lpt0_found == false && 70. / 180. * PI < conf && conf < 140. / 180. * PI && i < 1.2 / sample_dist) {//i < 0.8 / sample_dist 相当于让点在近处
+        if (Lpt0_found == false && 70. / 180. * PI < conf && conf < 120. / 180. * PI && i < 1.2 / sample_dist) {//i < 0.8 / sample_dist 相当于让点在近处
             Lpt0_rpts0s_id = i;
             Lpt0_found = true;
         }
         //长直道阈值
-        if (conf > 5. / 180. * PI && i < 1.5 / sample_dist) is_straight0 = false;//有角度大于5度的角度时候不是长直道
+        // if (conf > 5. / 180. * PI && i < 1.2 / sample_dist) is_straight0 = false;//有角度大于5度的角度时候不是长直道
         if (Ypt0_found == true && Lpt0_found == true && is_straight0 == false) break;
     }
     for (int i = 0; i < rpts1s_num; i++) {
@@ -162,19 +265,16 @@ void find_corners() {
         int im1 = clip(i - (int)round(angle_dist / sample_dist), 0, rpts1s_num - 1);
         int ip1 = clip(i + (int)round(angle_dist / sample_dist), 0, rpts1s_num - 1);
         float conf = fabs(rpts1a[i]) - (fabs(rpts1a[im1]) + fabs(rpts1a[ip1])) / 2;
-        if (conf * 180 / PI > 50 && conf * 180 / PI < 140) {
-            std::cout << "右：" << conf * 180 / PI << std::endl;
-        }
         if (Ypt1_found == false && 30. / 180. * PI < conf && conf < 65. / 180. * PI && i < 1.2 / sample_dist) {
             Ypt1_rpts1s_id = i;
             Ypt1_found = true;
         }
-        if (Lpt1_found == false && 70. / 180. * PI < conf && conf < 140. / 180. * PI && i < 1.2 / sample_dist) {
+        if (Lpt1_found == false && 70. / 180. * PI < conf && conf < 120. / 180. * PI && i < 1.2 / sample_dist) {
             Lpt1_rpts1s_id = i;
             Lpt1_found = true;
         }
 
-        if (conf > 5. / 180. * PI && i < 1.5 / sample_dist) is_straight1 = false;
+        // if (conf > 5. / 180. * PI && i < 1.2 / sample_dist) is_straight1 = false;
 
         if (Ypt1_found == true && Lpt1_found == true && is_straight1 == false) break;
     }
@@ -226,7 +326,7 @@ void find_corners() {
 
 void show_line() {
     //////////////////画线 2023年11月21日
-    extern cv::Mat lineFrame;
+    // extern cv::Mat lineFrame;
     //for (int c = 0; c < COLSIMAGE; c++) {
     //    for (int r = 0; r < ROWSIMAGE; r++) {
     //        if (AT_IMAGE(&img_raw, c, r) < 140) {
@@ -237,31 +337,31 @@ void show_line() {
     //        }
     //    }
     //}
-    for (int i = 0; i < ipts0_num; i++) {
-        int x = ipts0[i][0];
-        int y = ipts0[i][1];
-        int current_value = AT_IMAGE(&img_raw, x, y);//当前灰度值x,y
+    // for (int i = 0; i < ipts0_num; i++) {
+    //     int x = ipts0[i][0];
+    //     int y = ipts0[i][1];
+    //     int current_value = AT_IMAGE(&img_raw, x, y);//当前灰度值x,y
 
-        if (current_value < 140) {
-            cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(0, 0, 0));
-        }
-        else {
-            cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(255, 255, 255));
-        }
-    }
-    //for (int i = 0; i < ipts1_num; i++) {
-    //    int x = ipts1[i][0];
-    //    int y = ipts1[i][1];
-    //    int current_value = AT_IMAGE(&img_raw, x, y);//当前灰度值x,y
+    //     if (current_value < 140) {
+    //         cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(0, 0, 0));
+    //     }
+    //     else {
+    //         cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(255, 255, 255));
+    //     }
+    // }
+    // for (int i = 0; i < ipts1_num; i++) {
+    //     int x = ipts1[i][0];
+    //     int y = ipts1[i][1];
+    //     int current_value = AT_IMAGE(&img_raw, x, y);//当前灰度值x,y
 
-    //    if (current_value < 140) {
-    //        cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(0, 0, 0));
-    //    }
-    //    else {
-    //        cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(255, 255, 255));
-    //    }
-    //}
-    //imshow("lineFrame", lineFrame);
+    //     if (current_value < 140) {
+    //         cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(0, 0, 0));
+    //     }
+    //     else {
+    //         cv::circle(lineFrame, cv::Point(x, y), 1, cv::Scalar(255, 255, 255));
+    //     }
+    // }
+    // imshow("lineFrame", lineFrame);
 
     // 绘制逆透视后的道路线            
     extern cv::Mat nitoushi;
@@ -275,6 +375,11 @@ void show_line() {
             }
         }
     }
+#ifdef CAR_SAVEIMG
+    static int i = 1;
+    std::string filename = "../frame/nitoushi" + std::to_string(i++) + ".jpg";
+    imwrite(filename, nitoushi);
+#endif
     imshow("nitoushi", nitoushi);
 
 }

@@ -61,6 +61,7 @@ void check_cross() {
     if (cross_type == CROSS_NONE && Xfound) cross_type = CROSS_BEGIN;
 }
 
+int cross_count = 0;
 void run_cross() {
     bool Xfound = Lpt0_found && Lpt1_found;
     //    int64_t current_encoder = get_total_encoder();
@@ -68,6 +69,11 @@ void run_cross() {
     float Lpt1y = rpts1s[Lpt1_rpts1s_id][1];
     //检测到十字，先按照近线走
     if (cross_type == CROSS_BEGIN) {
+        if (cross_count++ > 30) {
+            cross_count = 0;
+            cross_type = CROSS_NONE;
+        }
+
         if (Lpt0_found) {
             rptsc0_num = rpts0s_num = Lpt0_rpts0s_id;
         }
@@ -78,13 +84,18 @@ void run_cross() {
         //COUT2(0.1 / sample_dist, Lpt0_rpts0s_id);
         if ((Xfound &&
             //拐点距离车轮25厘米时，进入远线控制
-            (Lpt0_rpts0s_id < 0.5 / sample_dist || Lpt1_rpts1s_id < 0.5 / sample_dist))
+            (Lpt0_rpts0s_id < 0.7 / sample_dist && Lpt1_rpts1s_id < 0.7 / sample_dist))
             /* || (rpts1_num <30 && rpts0_num<30)*/) {
+            bias_i = 0;
             cross_type = CROSS_IN;
         }
     }
     //远线控制进十字,begin_y渐变靠近防丢线
     else if (cross_type == CROSS_IN) {
+        if (cross_count++ > 90) {
+            cross_count = 0;
+            cross_type = CROSS_NONE;
+        }
         //寻远线,算法与近线相同
         cross_farline();
 
@@ -145,7 +156,7 @@ void cross_farline() {
     far_y1 = 0, far_y2 = 0;
 
 
-    int x1 = img_raw.width / 2 - begin_x, y1 = begin_y;
+    int x1 = img_raw.width / 2 - begin_x / 2, y1 = begin_y;
     bool white_found = false;
     far_ipts0_num = sizeof(far_ipts0) / sizeof(far_ipts0[0]);
 
@@ -172,7 +183,7 @@ void cross_farline() {
         findline_lefthand_adaptive(&img_raw, block_size, clip_value, far_x1, far_y1 + 1, far_ipts0, &far_ipts0_num);
     else far_ipts0_num = 0;
 
-    int x2 = img_raw.width / 2 + begin_x, y2 = begin_y;
+    int x2 = img_raw.width / 2 + begin_x / 2, y2 = begin_y;
     white_found = false;
     far_ipts1_num = sizeof(far_ipts1) / sizeof(far_ipts1[0]);
 

@@ -24,6 +24,20 @@ typedef struct PID{
     float error;
     float pre_error;
     float pre_pre_error;
+    PID() {
+        this->kp = 0.0f;
+        this->ki = 0.0f;
+        this->kd = 0.0f;
+        this->low_pass = 0.0f;
+        this->p_max = 0.0f;
+        this->i_max = 0.0f;
+        this->d_max = 0.0f;
+        this->out_p = this->out_i = this->out_d = 0.0f;
+
+        this->error = 0.0f;
+        this->pre_error = 0.0f;
+        this->pre_pre_error = 0.0f;
+    }
     PID(const float _kp, const float _ki, const float _kd, const float _low_pass, const float max_p, const float max_i, const float max_d) {
         this->kp = _kp;
         this->ki = _ki;

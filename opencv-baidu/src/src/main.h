@@ -2,6 +2,7 @@
 #define __MAIN_H__
 
 #define CAR_DEBUG
+#define CAR_SAVEIMG
 //#define CIRCLE_DEBUG
 //#define CROSS_DEBUG
 //#define GARAGE_DEBUG
@@ -123,4 +124,13 @@ enum track_type_e {
 extern enum track_type_e track_type;
 
 
+extern double stdevLeft;    // ±ßÔµ·½²î
+extern double stdevRight;   // ±ßÔµ·½²î
+extern float radius;       // Ô²»¡°ë¾¶
+
+
+// extern long double bias_p;
+// extern long double bias_p_last;
+extern long double bias_i;
+// extern long double bias_d;
 #endif //! __MAIN_H__

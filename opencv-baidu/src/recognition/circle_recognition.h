@@ -15,6 +15,9 @@ extern const char* circle_type_name[CIRCLE_NUM];
 
 extern enum circle_type_e circle_type;
 
+// ÈýµãÔ²»¡°ë¾¶
+float radius_3pts(float pt0[2], float pt1[2], float pt2[2]);
+
 void check_circle();
 
 void run_circle();

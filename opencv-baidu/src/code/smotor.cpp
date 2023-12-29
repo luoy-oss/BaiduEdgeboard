@@ -1,9 +1,6 @@
 #include "smotor.h"
 #include "pid.h"
 
-// 当前yaw舵机转向角度
-float laser_angle = SMOTOR2_CENTER;
-
 void smotor_init(void) {
     //pwm_init(SMOTOR1_PIN, SERVO_FREQ, servo_duty(SMOTOR1_CENTER));
     //pwm_init(SMOTOR2_PIN, SERVO_FREQ, servo_duty(SMOTOR2_CENTER));
