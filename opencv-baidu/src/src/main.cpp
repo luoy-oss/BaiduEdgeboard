@@ -347,7 +347,6 @@ int main() {
 			}
 		}
 
-		clear_image(&img_line);
 		{
 			// 车轮对应点(纯跟踪起始点)
 			// for (int r = 0; r < ROWSIMAGE; r++) {
@@ -494,7 +493,7 @@ int main() {
 		debug_show();
 		show_line();
 		imshow("frame", frame);
-		waitKey(1);
+		waitKey(10);
 #endif
 
 #ifndef _WIN32
@@ -580,6 +579,10 @@ int main() {
 		speed = speed_control();
 		//driver->WriteData(sendData, 8);//这个函数就是给串口发送数据的函数，sendData就是要发送的数组
 #endif
+
+
+
+		clear_image(&img_line);
 	}
 	return 0;
 }
@@ -587,15 +590,24 @@ int main() {
 void debug_show() {
 	// 显示赛道识别类型
 	if (circle_type != CIRCLE_NONE) {
+		putText(imageCorrect, "up_y_e:", Point(150, 200),
+			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+			LINE_AA); // 显示赛道识别类型
+
+		if(circle_type == CIRCLE_LEFT_IN){
+			putText(imageCorrect, std::to_string(circle_rptss[circle_Lpt_rptss_id][1]), Point(230, 200),
+				cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+				LINE_AA); // 显示赛道识别类型
+		}
 		putText(imageCorrect, circle_type_name[circle_type], Point(10, 30),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 255, 0), 1,
 			LINE_AA);
 
-		putText(imageCorrect, "radius", Point(190, 150),
+		putText(imageCorrect, "radius", Point(150, 170),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 
-		putText(imageCorrect, std::to_string(radius), Point(250, 150),
+		putText(imageCorrect, std::to_string(radius), Point(230, 170),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 	}
@@ -621,7 +633,7 @@ void debug_show() {
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 
-		putText(imageCorrect, std::to_string(bias_p), Point(100, 60),
+		putText(imageCorrect, std::to_string(bias_p), Point(80, 60),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 	}
@@ -631,7 +643,7 @@ void debug_show() {
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 
-		putText(imageCorrect, std::to_string(bias_i), Point(100, 90),
+		putText(imageCorrect, std::to_string(bias_i), Point(80, 90),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 	}
@@ -641,7 +653,7 @@ void debug_show() {
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 
-		putText(imageCorrect, std::to_string(bias_d), Point(100, 120),
+		putText(imageCorrect, std::to_string(bias_d), Point(80, 120),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 	}
@@ -657,7 +669,7 @@ void debug_show() {
 	}
 
 	if (is_straight0) {
-		putText(imageCorrect, "LStraight", Point(10, 170),
+		putText(imageCorrect, "LStraight", Point(10, 230),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 	}
@@ -667,7 +679,7 @@ void debug_show() {
 		//	LINE_AA); // 显示赛道识别类型
 	}
 	if (is_straight1) {
-		putText(imageCorrect, "RStraight", Point(150, 170),
+		putText(imageCorrect, "RStraight", Point(150, 230),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 	}
@@ -701,6 +713,38 @@ void debug_show() {
 		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 		LINE_AA); // 显示赛道识别类型
 
+
+	putText(imageCorrect, std::to_string(rpts0s_num), Point(150, 220),
+		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0), 1,
+		LINE_AA); // 显示赛道识别类型
+
+	putText(imageCorrect, std::to_string(rpts1s_num), Point(210, 220),
+		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0), 1,
+		LINE_AA); // 显示赛道识别类型
+
+	
+	for (int i = 0; i < ipts0_num; i++) {
+		int c = ipts0[i][0];
+		int r = ipts0[i][1];
+		MAT_AT_SET(imageCorrect, r, c, 0, 0, 255);
+		
+	}
+
+	for (int i = 0; i < ipts1_num; i++) {
+		int c = ipts1[i][0];
+		int r = ipts1[i][1];
+		MAT_AT_SET(imageCorrect, r, c, 0, 255, 0);
+		//imageCorrect.at<Vec3b>(r, c)[0] = 0;
+		//imageCorrect.at<Vec3b>(r, c)[1] = 255;
+		//imageCorrect.at<Vec3b>(r, c)[2] = 0;
+	}
+	
+	for (int i = 0; i < circle_ipts_num; i++) {
+		int c = circle_ipts[i][0];
+		int r = circle_ipts[i][1];
+		//MAT_AT_SET(imageCorrect, r, c, 0, 125, 125);
+		cv::circle(imageCorrect, Point(c, r), 1, Scalar(0, 215, 255));
+	}
 #ifdef CAR_SAVEIMG
 	static int ii = 1;
 	std::string filename = "../frame/imageCorrect" + std::to_string(ii++) + ".jpg";

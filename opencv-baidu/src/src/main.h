@@ -14,6 +14,11 @@
 
 #define COUT1(x) (std::cout<<(x)<<std::endl)
 #define COUT2(x,y) (std::cout<<(x)<<","<<(y)<<std::endl)
+#define MAT_AT_SET(dst,r,c,new_b,new_g,new_r) dst.at<cv::Vec3b>(r, c)[0] = new_b;\
+dst.at<cv::Vec3b>(r, c)[1] = new_g;\
+dst.at<cv::Vec3b>(r, c)[2] = new_r
+
+#define MAT_SET(dst,r,c,new_b,new_g,new_r) dst.
 
 extern float thres;                 // 二值化阈值，主要用于找起始点(边线使用自适应阈值，不使用该阈值)
 extern float block_size;            // 自适应阈值的block大小
@@ -133,4 +138,17 @@ extern float radius;       // 圆弧半径
 // extern long double bias_p_last;
 extern long double bias_i;
 // extern long double bias_d;
+
+
+
+// 原图左右边线(圆环)
+extern int circle_ipts[POINTS_MAX_LEN][2];
+extern int circle_ipts_num;
+
+// 变换后左右边线+等距采样
+extern float circle_rptss[POINTS_MAX_LEN][2];
+extern int circle_rptss_num;
+// L角点
+extern int circle_Lpt_rptss_id;
+extern bool circle_Lpt_found;
 #endif //! __MAIN_H__
