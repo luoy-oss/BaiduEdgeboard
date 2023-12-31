@@ -53,7 +53,7 @@ int far_rpts0an_num, far_rpts1an_num;
 
 int not_have_line = 0;
 
-int far_x1 = 86, far_x2 = 260, far_y1, far_y2;
+int far_x1 = 86 / IMAGESCALE, far_x2 = 260 / IMAGESCALE, far_y1, far_y2;
 
 //双L角点,切十字模式
 void check_cross() {

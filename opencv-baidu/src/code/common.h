@@ -10,4 +10,6 @@
 //#define PWMSERVOMID 1500 // 舵机PWM中值 1520
 //#define PWMSERVOMIN 1100 // 舵机PWM最小值（右）1200
 
+#define IMAGESCALE 2	// 寻线比例[整数]（默认为1：不进行缩放）
+
 #endif //! __COMMON_H__

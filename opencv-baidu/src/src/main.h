@@ -44,7 +44,7 @@ extern bool track_left;
 extern float angle;
 
 #define ROAD_WIDTH      (0.45)
-#define POINTS_MAX_LEN  (ROWSIMAGE)
+#define POINTS_MAX_LEN  (ROWSIMAGE/IMAGESCALE)
 
 #define FAR_POINTS_MAX_LEN  (POINTS_MAX_LEN)
 

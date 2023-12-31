@@ -105,35 +105,34 @@ void circle_right_in_check() {
             }
         }
         if (top_id == 10) {
-            top_id = 39;
+            top_id = 40 - 1;
         }
 
     }
     else {
         top_id = 0;
     }
-    if (rpts1s_num > 10) {
+    if (rpts1s_num > 10 / IMAGESCALE) {
         if (top_id) {
-            x1 = ipts1[top_id][0] - 5, y1 = ipts1[top_id][1] - 5;
+            x1 = ipts1[top_id][0] - 5 / IMAGESCALE, y1 = ipts1[top_id][1] - 5 / IMAGESCALE;
         }
         else {
-            x1 = ipts1[top_id][0], y1 = ipts1[top_id][1] - 5;
+            x1 = ipts1[top_id][0], y1 = ipts1[top_id][1] - 5 / IMAGESCALE;
         }
         extern cv::Mat imageCorrect;
-        cv::circle(imageCorrect, cv::Point(x1, y1), 3, cv::Scalar(255, 245, 0));
+        cv::circle(imageCorrect, cv::Point(x1 * IMAGESCALE, y1 * IMAGESCALE), 3, cv::Scalar(255, 245, 0));
 
-        draw_o(&img_line, clip((int)mapx[x1][y1], 0, img_line.width - 1),
-            clip((int)mapy[x1][y1], 0, img_line.height - 1), 5, 255);
+        draw_o(&img_line, clip((int)mapx[x1 * IMAGESCALE][y1 * IMAGESCALE] / 2, 0, img_line.width - 1),
+            clip((int)mapy[x1 * IMAGESCALE][y1 * IMAGESCALE] / 2, 0, img_line.height - 1), 5, 255);
         circle_ipts_num = sizeof(circle_ipts) / sizeof(circle_ipts[0]);
         //for (; y1 > 0; y1--) if (AT_IMAGE(&img_raw, x1, y1 - 1) < thres) break;
         for (; y1 > 0; y1--) {
         
         #ifdef CAR_DEBUG
-            MAT_AT_SET(imageCorrect, y1, x1, 255, 245, 0);
-            //cv::circle(imageCorrect, cv::Point(x1, y1), 3, cv::Scalar(255, 245, 0));
+            MAT_AT_SET(imageCorrect, y1 * IMAGESCALE, x1 * IMAGESCALE, 255, 245, 0);
 
-            AT_IMAGE(&img_line, clip((int)mapx[x1][y1], 0, img_line.width - 1),
-                clip((int)mapy[x1][y1], 0, img_line.height - 1)) = 255;
+            AT_IMAGE(&img_line, clip((int)mapx[x1 * IMAGESCALE][y1 * IMAGESCALE] / 2, 0, img_line.width - 1),
+                clip((int)mapy[x1 * IMAGESCALE][y1 * IMAGESCALE] / 2, 0, img_line.height - 1)) = 255;
         #endif
 
             if (AT_IMAGE(&img_raw, x1, y1 - 1) < thres) break;
@@ -145,8 +144,8 @@ void circle_right_in_check() {
 
         // 去畸变+透视变换（mapx，mapy，畸变坐标映射数组）
         for (int i = 0; i < circle_ipts_num; i++) {
-            circle_rpts[i][0] = mapx[circle_ipts[i][1]][circle_ipts[i][0]];
-            circle_rpts[i][1] = mapy[circle_ipts[i][1]][circle_ipts[i][0]];
+            circle_rpts[i][0] = mapx[circle_ipts[i][1] * IMAGESCALE][circle_ipts[i][0] * IMAGESCALE] / IMAGESCALE;
+            circle_rpts[i][1] = mapy[circle_ipts[i][1] * IMAGESCALE][circle_ipts[i][0] * IMAGESCALE] / IMAGESCALE;
         }
         circle_rpts_num = circle_ipts_num;
 
@@ -194,25 +193,25 @@ void circle_left_in_check() {
     }
     if (rpts0s_num > 10) {
         if (top_id) {
-            x1 = ipts0[top_id][0] + 5, y1 = ipts0[top_id][1] - 5;
+            x1 = ipts0[top_id][0] + 5 / IMAGESCALE, y1 = ipts0[top_id][1] - 5 / IMAGESCALE;
         }
         else {
-            x1 = ipts0[top_id][0], y1 = ipts0[top_id][1] - 5;
+            x1 = ipts0[top_id][0], y1 = ipts0[top_id][1] - 5 / IMAGESCALE;
         }
         extern cv::Mat imageCorrect;
         
-        cv::circle(imageCorrect, cv::Point(x1, y1), 3, cv::Scalar(255, 245, 0));
+        cv::circle(imageCorrect, cv::Point(x1 * IMAGESCALE, y1 * IMAGESCALE), 3, cv::Scalar(255, 245, 0));
 
-        draw_o(&img_line, clip((int)mapx[x1][y1], 0, img_line.width - 1),
-            clip((int)mapy[x1][y1], 0, img_line.height - 1), 5, 255);
+        draw_o(&img_line, clip((int)mapx[x1 * IMAGESCALE][y1 * IMAGESCALE] / 2, 0, img_line.width - 1),
+            clip((int)mapy[x1 * IMAGESCALE][y1 * IMAGESCALE] / 2, 0, img_line.height - 1), 5, 255);
         circle_ipts_num = sizeof(circle_ipts) / sizeof(circle_ipts[0]);
         //for (; y1 > 0; y1--) if (AT_IMAGE(&img_raw, x1, y1 - 1) < thres) break;
         for (; y1 > 0; y1--) {
 #ifdef CAR_DEBUG
-            MAT_AT_SET(imageCorrect, y1, x1, 255, 245, 0);
+            MAT_AT_SET(imageCorrect, y1 * IMAGESCALE, x1 * IMAGESCALE, 255, 245, 0);
 
-            AT_IMAGE(&img_line, clip((int)mapx[x1][y1], 0, img_line.width - 1),
-                clip((int)mapy[x1][y1], 0, img_line.height - 1)) = 255;
+            AT_IMAGE(&img_line, clip((int)mapx[x1 * IMAGESCALE][y1 * IMAGESCALE] / 2, 0, img_line.width - 1),
+                clip((int)mapy[x1 * IMAGESCALE][y1 * IMAGESCALE] / 2, 0, img_line.height - 1)) = 255;
 #endif // CAR_DEBUG
 
             if (AT_IMAGE(&img_raw, x1, y1 - 1) < thres) break;
@@ -224,8 +223,8 @@ void circle_left_in_check() {
 
         // 去畸变+透视变换（mapx，mapy，畸变坐标映射数组）
         for (int i = 0; i < circle_ipts_num; i++) {
-            circle_rpts[i][0] = mapx[circle_ipts[i][1]][circle_ipts[i][0]];
-            circle_rpts[i][1] = mapy[circle_ipts[i][1]][circle_ipts[i][0]];
+            circle_rpts[i][0] = mapx[circle_ipts[i][1] * IMAGESCALE][circle_ipts[i][0] * IMAGESCALE] / IMAGESCALE;
+            circle_rpts[i][1] = mapy[circle_ipts[i][1] * IMAGESCALE][circle_ipts[i][0] * IMAGESCALE] / IMAGESCALE;
         }
         circle_rpts_num = circle_ipts_num;
 
@@ -289,7 +288,7 @@ void run_circle() {
         if (circle_Lpt_found) {
             circle_rptss_num = circle_Lpt_rptss_id;
 
-            if (circle_rptss[circle_Lpt_rptss_id][1] > 150) {
+            if (circle_rptss[circle_Lpt_rptss_id][1] > 150 / IMAGESCALE) {
                 circle_ipts_num = circle_rpts_num = circle_rptsb_num = circle_rptss_num = circle_Lpt_rptss_id = 0;
                 circle_type = CIRCLE_LEFT_RUNNING;
             }
@@ -304,6 +303,7 @@ void run_circle() {
             AT_IMAGE(&img_line, clip(circle_rptss[i][0], 0, img_line.width - 1),
                 clip(circle_rptss[i][1], 0, img_line.height - 1)) = 255;
         }
+        cv::waitKey(200);
     }
     //正常巡线，寻外圆右线
     else if (circle_type == CIRCLE_LEFT_RUNNING) {
@@ -325,7 +325,7 @@ void run_circle() {
         }
         vector<int> v_slope;
         int step = 10; // size/10;
-        if (rpts1s_num > 60) {
+        if (rpts1s_num > 60 / IMAGESCALE) {
             for (int i = step; i < 60; i += step) {
                 if (rpts1s[i][0] - rpts1s[i - step][0]) {
                     v_slope.push_back(
@@ -377,7 +377,7 @@ void run_circle() {
     }
     //右环控制，前期寻左直道
     else if (circle_type == CIRCLE_RIGHT_BEGIN) {
-        if (circle_count++ > 60) {
+        if (circle_count++ > 60 / IMAGESCALE) {
             circle_count = 0;
             circle_type = CIRCLE_NONE;
         }
@@ -401,7 +401,7 @@ void run_circle() {
         find_upcorners();
         if (circle_Lpt_found) {
             circle_rptss_num = circle_Lpt_rptss_id;
-            if (circle_rptss[circle_Lpt_rptss_id][1] > 150) {
+            if (circle_rptss[circle_Lpt_rptss_id][1] > 150 / IMAGESCALE) {
                 circle_ipts_num = circle_rpts_num = circle_rptsb_num = circle_rptss_num = circle_Lpt_rptss_id = 0;
                 circle_type = CIRCLE_RIGHT_RUNNING;
             }
@@ -416,6 +416,7 @@ void run_circle() {
             AT_IMAGE(&img_line, clip(circle_rptss[i][0], 0, img_line.width - 1),
                 clip(circle_rptss[i][1], 0, img_line.height - 1)) = 255;
         }
+        cv::waitKey(200);
     }
     //正常巡线，寻外圆左线
     else if (circle_type == CIRCLE_RIGHT_RUNNING) {

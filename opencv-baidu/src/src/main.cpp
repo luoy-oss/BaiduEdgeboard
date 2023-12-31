@@ -37,12 +37,12 @@ Mat imageCorrect;	//赛道元素
 //访问方式非常简单，可以直接使用下标的方式访问
 //例如访问第10行 50列的点，mt9v03x_csi_image[10][50]就可以了
 //uint8(*mt9v03x_csi_image)[MT9V03X_CSI_W];
-uint8_t img_thres_data[ROWSIMAGE][COLSIMAGE];
-uint8_t img_line_data[ROWSIMAGE][COLSIMAGE];
+uint8_t img_thres_data[ROWSIMAGE/IMAGESCALE][COLSIMAGE/IMAGESCALE];
+uint8_t img_line_data[ROWSIMAGE/IMAGESCALE][COLSIMAGE/IMAGESCALE];
 
-//image_t img_raw(NULL, COLSIMAGE, ROWSIMAGE);
-image_t img_thres((uint8_t*)img_thres_data, COLSIMAGE, ROWSIMAGE);
-image_t img_line((uint8_t*)img_line_data, COLSIMAGE, ROWSIMAGE);
+//image_t img_raw(NULL, COLSIMAGE/IMAGESCALE, ROWSIMAGE/IMAGESCALE);
+image_t img_thres((uint8_t*)img_thres_data, COLSIMAGE/IMAGESCALE, ROWSIMAGE/IMAGESCALE);
+image_t img_line((uint8_t*)img_line_data, COLSIMAGE/IMAGESCALE, ROWSIMAGE/IMAGESCALE);
 
 // line_show_sample在cross.c中的draw_cross()中被调用
 bool line_show_sample = true;
@@ -55,15 +55,15 @@ float clip_value = 2;
 // float begin_x = 25;
 // float begin_y = 170;
 
-float begin_x = 15;
-float begin_y = 170;
+float begin_x = 15 / IMAGESCALE;
+float begin_y = 170 / IMAGESCALE;
 
 float line_blur_kernel = 7;//原7
-float pixel_per_meter = 94;//平移像素，拟合中线
-float sample_dist = 0.02;
-float angle_dist = 0.2;
-float far_rate = 0.5;
-float aim_distance = 0.68;
+float pixel_per_meter = 94 / IMAGESCALE;//平移像素，拟合中线
+float sample_dist = 0.02 * IMAGESCALE;
+float angle_dist = 0.2 * IMAGESCALE;
+float far_rate = 0.5 / IMAGESCALE;
+float aim_distance = 0.68 / IMAGESCALE;
 bool adc_cross = false;
 
 //↓↓↓↓↓extern pid_param_t servo_pid;
@@ -165,7 +165,7 @@ int main() {
 
 	//VideoCapture cap(0);
 	std::string video = "lx.mp4";
-	video = "./video/resultf2.mp4";
+	video = "./video/result_best.mp4";
 	VideoCapture cap(video);
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
@@ -182,8 +182,8 @@ int main() {
 	while (1) {
 		//circle_type = CIRCLE_LEFT_IN;
 		//circle_type = CIRCLE_RIGHT_IN;
-		lineFrame = Mat::zeros(cv::Size(320, 240), CV_8UC1);
-		nitoushi = Mat::zeros(cv::Size(320, 240), CV_8UC1);
+		lineFrame = Mat::zeros(cv::Size(COLSIMAGE/IMAGESCALE, ROWSIMAGE / IMAGESCALE), CV_8UC1);
+		nitoushi = Mat::zeros(cv::Size(COLSIMAGE / IMAGESCALE, ROWSIMAGE / IMAGESCALE), CV_8UC1);
 		cap >> frame;
 
 #ifdef CAR_SAVEIMG
@@ -349,13 +349,13 @@ int main() {
 
 		{
 			// 车轮对应点(纯跟踪起始点)
-			// for (int r = 0; r < ROWSIMAGE; r++) {
-			// 	if ((int)mapx[COLSIMAGE / 2][r] == 161) {
-					// COUT2("r:" + to_string(r),mapy[COLSIMAGE / 2][r]);
+			// for (int r = 0; r < ROWSIMAGE/IMAGESCALE; r++) {
+			// 	if ((int)mapx[COLSIMAGE/IMAGESCALE / 2][r] == 161) {
+					// COUT2("r:" + to_string(r),mapy[COLSIMAGE/IMAGESCALE / 2][r]);
 			// 	}
 			// }
-			float cx = mid_x;//161;//mapx[COLSIMAGE / 2][164]/*为161.525*/;
-			float cy = mid_y;//230;
+			float cx = mid_x / IMAGESCALE;//161;//mapx[COLSIMAGE/IMAGESCALE / 2][164]/*为161.525*/;
+			float cy = mid_y / IMAGESCALE;//230;
 			// draw_x(&img_line, cx, cy, 2, 255);
 			// 找最近点(起始点中线归一化)
 			float min_dist = 1e10;
@@ -374,6 +374,7 @@ int main() {
 			if (garage_type == GARAGE_IN || cross_type == CROSS_IN) begin_id = 0;
 
 			// 中线有点，同时最近点不是最后几个点
+			aim_distance = aim_distance / IMAGESCALE;
 			if (begin_id >= 0 && rpts_num - begin_id >= 3) {
 
 
@@ -389,7 +390,7 @@ int main() {
 				// 近预锚点位置
 				int aim_idx_near = clip(round(0.25 / sample_dist), 0, rptsn_num - 1);
 
-				draw_o(&img_line, rptsn[begin_id][0], rptsn[begin_id][1], 3, 255);
+				draw_o(&img_line, rptsn[begin_id][0], rptsn[begin_id][1], 4/IMAGESCALE, 255);
 				// 计算远锚点偏差值
 				float dx = rptsn[aim_idx][0] - cx;
 				float dy = cy - rptsn[aim_idx][1] + 0.2 * pixel_per_meter;
@@ -430,7 +431,7 @@ int main() {
 				speed = P;
 				// COUT1(P);
 				ctr = (long double)bias_p * P/*9.5*/ + (long double)bias_i * Ki + (long double)bias_d * Kd;
-				midAdd = 1500 - ctr;
+				midAdd = 1500 - ctr * IMAGESCALE;
 				//midAdd = kalmanFilter(&KFP_height, midAdd);
 				if (midAdd > 1800) {
 					midAdd = 1800;
@@ -476,13 +477,13 @@ int main() {
 			}
 			// 绘制锚点
 			int aim_idx = clip(round(aim_distance / sample_dist), 0, rptsn_num - 1);
-			draw_x(&img_line, rptsn[aim_idx][0], rptsn[aim_idx][1], 3, 255);
+			draw_x(&img_line, rptsn[aim_idx][0], rptsn[aim_idx][1], 4 / IMAGESCALE, 255);
 			// 绘制角点
 			if (Lpt0_found) {
-				draw_x(&img_line, rpts0s[Lpt0_rpts0s_id][0], rpts0s[Lpt0_rpts0s_id][1], 3, 255);
+				draw_x(&img_line, rpts0s[Lpt0_rpts0s_id][0], rpts0s[Lpt0_rpts0s_id][1], 4 / IMAGESCALE, 255);
 			}
 			if (Lpt1_found) {
-				draw_x(&img_line, rpts1s[Lpt1_rpts1s_id][0], rpts1s[Lpt1_rpts1s_id][1], 3, 255);
+				draw_x(&img_line, rpts1s[Lpt1_rpts1s_id][0], rpts1s[Lpt1_rpts1s_id][1], 4 / IMAGESCALE, 255);
 			}
 		}
 #ifdef CAR_DEBUG
@@ -594,7 +595,7 @@ void debug_show() {
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 
-		if(circle_type == CIRCLE_LEFT_IN){
+		if(circle_type == CIRCLE_LEFT_IN || circle_type == CIRCLE_RIGHT_IN){
 			putText(imageCorrect, std::to_string(circle_rptss[circle_Lpt_rptss_id][1]), Point(230, 200),
 				cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 				LINE_AA); // 显示赛道识别类型
@@ -724,15 +725,15 @@ void debug_show() {
 
 	
 	for (int i = 0; i < ipts0_num; i++) {
-		int c = ipts0[i][0];
-		int r = ipts0[i][1];
+		int c = ipts0[i][0] * IMAGESCALE;
+		int r = ipts0[i][1] * IMAGESCALE;
 		MAT_AT_SET(imageCorrect, r, c, 0, 0, 255);
 		
 	}
 
 	for (int i = 0; i < ipts1_num; i++) {
-		int c = ipts1[i][0];
-		int r = ipts1[i][1];
+		int c = ipts1[i][0] * IMAGESCALE;
+		int r = ipts1[i][1] * IMAGESCALE;
 		MAT_AT_SET(imageCorrect, r, c, 0, 255, 0);
 		//imageCorrect.at<Vec3b>(r, c)[0] = 0;
 		//imageCorrect.at<Vec3b>(r, c)[1] = 255;
@@ -740,8 +741,8 @@ void debug_show() {
 	}
 	
 	for (int i = 0; i < circle_ipts_num; i++) {
-		int c = circle_ipts[i][0];
-		int r = circle_ipts[i][1];
+		int c = circle_ipts[i][0] * IMAGESCALE;
+		int r = circle_ipts[i][1] * IMAGESCALE;
 		//MAT_AT_SET(imageCorrect, r, c, 0, 125, 125);
 		cv::circle(imageCorrect, Point(c, r), 1, Scalar(0, 215, 255));
 	}
