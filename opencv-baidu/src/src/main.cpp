@@ -20,6 +20,7 @@
 #include "../code/uart.h"
 #endif
 
+#include <ctime>
 using namespace cv;
 
 
@@ -203,6 +204,17 @@ int main() {
 		std::string bifilename = "../frame/bi_frame" + std::to_string(bi++) + ".jpg";
 		imwrite(bifilename, frame);
 #endif
+		// 处理帧时长监测
+		static auto preTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch())
+			.count();
+		auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch())
+			.count();
+		std::cout << "run frame time : " << startTime - preTime << "ms" << std::endl;
+		float detFPS = (float)1000.f / (startTime - preTime);
+		preTime = startTime;
+
 		frameTOimg_raw(frame);
 		process_image();
 		/*{
@@ -374,7 +386,6 @@ int main() {
 			if (garage_type == GARAGE_IN || cross_type == CROSS_IN) begin_id = 0;
 
 			// 中线有点，同时最近点不是最后几个点
-			aim_distance = aim_distance / IMAGESCALE;
 			if (begin_id >= 0 && rpts_num - begin_id >= 3) {
 
 
@@ -409,7 +420,7 @@ int main() {
 					midAdd = -125;
 				}
 
-				bias_p = rptsn[aim_idx][0] - cx;
+				bias_p = (rptsn[aim_idx][0] - cx) * IMAGESCALE;
 				bias_d = bias_p - bias_p_last;
 				bias_p_last = bias_p;
 				// bias_i = 0.0;
@@ -431,7 +442,7 @@ int main() {
 				speed = P;
 				// COUT1(P);
 				ctr = (long double)bias_p * P/*9.5*/ + (long double)bias_i * Ki + (long double)bias_d * Kd;
-				midAdd = 1500 - ctr * IMAGESCALE;
+				midAdd = 1500 - ctr;
 				//midAdd = kalmanFilter(&KFP_height, midAdd);
 				if (midAdd > 1800) {
 					midAdd = 1800;
@@ -577,7 +588,7 @@ int main() {
 		sendData[5] = 0x00;
 		sendData[6] = 0x00;
 		sendData[7] = 0x21;
-		speed = speed_control();
+		//speed = speed_control();
 		//driver->WriteData(sendData, 8);//这个函数就是给串口发送数据的函数，sendData就是要发送的数组
 #endif
 
