@@ -54,6 +54,8 @@ int far_rpts0an_num, far_rpts1an_num;
 int not_have_line = 0;
 
 int far_x1 = 86 / IMAGESCALE, far_x2 = 260 / IMAGESCALE, far_y1, far_y2;
+int maxWhiteCOL = 160;
+int maxWhiteROW = 0;
 
 //双L角点,切十字模式
 void check_cross() {
@@ -67,6 +69,24 @@ void run_cross() {
     //    int64_t current_encoder = get_total_encoder();
     float Lpt0y = rpts0s[Lpt0_rpts0s_id][1];
     float Lpt1y = rpts1s[Lpt1_rpts1s_id][1];
+
+    maxWhiteCOL = 160;
+    maxWhiteROW = 0;
+    // 寻找最长白列
+    if (cross_type != CROSS_NONE) {
+        int maxWhiteCount = 0;
+        for (int c = 0; c < COLSIMAGE / IMAGESCALE; c++) {
+            int r = begin_y;
+            for (; r >= 0; r--) if (AT_IMAGE(&img_raw, c, r) != 255) break;
+
+            if (begin_y - r > maxWhiteCount) {
+                maxWhiteCount = begin_y - r;
+                maxWhiteCOL = c;
+                maxWhiteROW = r;
+            }
+        }
+    }
+
     //检测到十字，先按照近线走
     if (cross_type == CROSS_BEGIN) {
         if (cross_count++ > 30) {
@@ -92,26 +112,45 @@ void run_cross() {
     }
     //远线控制进十字,begin_y渐变靠近防丢线
     else if (cross_type == CROSS_IN) {
+        //if (cross_count++ > 60) {
+        //    cross_count = 0;
+        //    cross_type = CROSS_NONE;
+        //}
+        ////寻远线,算法与近线相同
+        //cross_farline();
+
+        //if (rpts1s_num < 5 && rpts0s_num < 5) { not_have_line++; }
+        //if (not_have_line > 2 && rpts1s_num > 20 && rpts0s_num > 20) {
+        //    cross_type = CROSS_NONE;
+        //    not_have_line = 0;
+        //}
+        //if (far_Lpt1_found) { track_type = TRACK_RIGHT; }
+        //else if (far_Lpt0_found) { track_type = TRACK_LEFT; }
+        //else if (not_have_line > 0 && rpts1s_num < 5) { track_type = TRACK_RIGHT; }
+        //else if (not_have_line > 0 && rpts0s_num < 5) { track_type = TRACK_LEFT; }
+
+        //if (track_type == TRACK_RIGHT && far_rpts1s[far_Lpt1_rpts1s_id][0] > 240) {
+        //    track_type = TRACK_LEFT;
+        //}
+
         if (cross_count++ > 60) {
             cross_count = 0;
             cross_type = CROSS_NONE;
         }
-        //寻远线,算法与近线相同
-        cross_farline();
-
         if (rpts1s_num < 5 && rpts0s_num < 5) { not_have_line++; }
         if (not_have_line > 2 && rpts1s_num > 20 && rpts0s_num > 20) {
             cross_type = CROSS_NONE;
             not_have_line = 0;
         }
-        if (far_Lpt1_found) { track_type = TRACK_RIGHT; }
+        /*if (far_Lpt1_found) { track_type = TRACK_RIGHT; }
         else if (far_Lpt0_found) { track_type = TRACK_LEFT; }
         else if (not_have_line > 0 && rpts1s_num < 5) { track_type = TRACK_RIGHT; }
         else if (not_have_line > 0 && rpts0s_num < 5) { track_type = TRACK_LEFT; }
 
         if (track_type == TRACK_RIGHT && far_rpts1s[far_Lpt1_rpts1s_id][0] > 240) {
             track_type = TRACK_LEFT;
-        }
+        }*/
+
     }
 }
 

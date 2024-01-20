@@ -204,16 +204,16 @@ int main() {
 		std::string bifilename = "../frame/bi_frame" + std::to_string(bi++) + ".jpg";
 		imwrite(bifilename, frame);
 #endif
-		// 处理帧时长监测
-		static auto preTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-			std::chrono::system_clock::now().time_since_epoch())
-			.count();
-		auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-			std::chrono::system_clock::now().time_since_epoch())
-			.count();
-		std::cout << "run frame time : " << startTime - preTime << "ms" << std::endl;
-		float detFPS = (float)1000.f / (startTime - preTime);
-		preTime = startTime;
+		//// 处理帧时长监测
+		//static auto preTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+		//	std::chrono::system_clock::now().time_since_epoch())
+		//	.count();
+		//auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+		//	std::chrono::system_clock::now().time_since_epoch())
+		//	.count();
+		//std::cout << "run frame time : " << startTime - preTime << "ms" << std::endl;
+		//float detFPS = (float)1000.f / (startTime - preTime);
+		//preTime = startTime;
 
 		frameTOimg_raw(frame);
 		process_image();
@@ -346,17 +346,88 @@ int main() {
 			}
 		}
 		else {
-			//十字根据远线控制
-			if (track_type == TRACK_LEFT) {
-				track_leftline(far_rpts0s + far_Lpt0_rpts0s_id, far_rpts0s_num - far_Lpt0_rpts0s_id, rpts,
-					(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
-				rpts_num = far_rpts0s_num - far_Lpt0_rpts0s_id;
+			cv::waitKey(400);
+
+			int c = maxWhiteCOL;
+			int r = maxWhiteROW;
+			float far_rpts0s[FAR_POINTS_MAX_LEN][2];
+			float far_rpts1s[FAR_POINTS_MAX_LEN][2];
+			int far_rpts0s_num = 0;
+			int far_rpts1s_num = 0;
+			const int N = 5;
+
+			r = begin_y;
+			for (int i = 0; r > maxWhiteROW; r-= N, i++) {
+				c = maxWhiteCOL;
+				for (; c >= 0; c--) if (AT_IMAGE(&img_raw, c, r) != 255) break;
+				cv::circle(imageCorrect, Point(c, r), 2, Scalar(0, 255, 0));
+				ipts0[i][0] = c;
+				ipts0[i][1] = r;
 			}
-			else {
-				track_rightline(far_rpts1s + far_Lpt1_rpts1s_id, far_rpts1s_num - far_Lpt1_rpts1s_id, rpts,
-					(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
-				rpts_num = far_rpts1s_num - far_Lpt1_rpts1s_id;
+			ipts0_num = maxWhiteROW - begin_y;
+			
+			r = begin_y;
+			for (int i = 0; r > maxWhiteROW; r-= N, i++) {
+				c = maxWhiteCOL;
+				for (; c < COLSIMAGE; c++) if (AT_IMAGE(&img_raw, c, r) != 255) break;
+				cv::circle(imageCorrect, Point(c, r), 2, Scalar(0, 0, 255));
+				ipts1[i][0] = c;
+				ipts1[i][1] = r;
 			}
+			ipts1_num = maxWhiteROW - begin_y;
+			// 原图左右边线
+			int ipts[POINTS_MAX_LEN][2];
+			int ipts_num = 0;
+			r = begin_y;
+			for (int i = 0; r > maxWhiteROW; r-= N, i++) {
+				float x1 = ipts0[i][0];
+				float y1 = ipts0[i][1];
+				float x2 = ipts1[i][0];
+				float y2 = ipts1[i][1];
+
+				ipts[i][0] = (x1 + x2) / 2;
+				ipts[i][1] = r;
+				cv::circle(imageCorrect, Point((int)((x1 + x2) / 2), r), 2, Scalar(255, 0, 0));
+				ipts_num++;
+			}
+			
+			float temp_rpts[POINTS_MAX_LEN][2];
+			int temp_rpts_num = 0;
+
+			// 去畸变+透视变换（mapx，mapy，畸变坐标映射数组）
+			for (int i = 0; i < ipts_num; i++) {
+				temp_rpts[i][0] = mapx[ipts[i][1]][ipts[i][0]];
+				temp_rpts[i][1] = mapy[ipts[i][1]][ipts[i][0]];
+			}
+			temp_rpts_num = ipts_num;
+
+			// 变换后左右边线+滤波
+			float rptsb[POINTS_MAX_LEN][2];
+			int rptsb_num;
+			// 变换后左右边线+等距采样
+			float rptss[POINTS_MAX_LEN][2];
+			int rptss_num;
+
+			// 边线滤波
+			blur_points(temp_rpts, temp_rpts_num, rptsb, (int)round(21));
+			rptsb_num = temp_rpts_num;
+
+			// 边线等距采样
+			rptss_num = sizeof(rptss) / sizeof(rptss[0]);
+			resample_points(rptsb, rptsb_num, rpts, &rptss_num, 1.5 * sample_dist * pixel_per_meter);
+			rpts_num = rptss_num;
+
+			//if (track_type == TRACK_LEFT) {
+			//	track_leftline(far_rpts0s + far_Lpt0_rpts0s_id, far_rpts0s_num - far_Lpt0_rpts0s_id, rpts,
+			//		(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
+			//	rpts_num = far_rpts0s_num - far_Lpt0_rpts0s_id;
+			//}
+			//else {
+			//	track_rightline(far_rpts1s + far_Lpt1_rpts1s_id, far_rpts1s_num - far_Lpt1_rpts1s_id, rpts,
+			//		(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
+			//	rpts_num = far_rpts1s_num - far_Lpt1_rpts1s_id;
+			//}
+			
 		}
 
 		{
@@ -627,6 +698,16 @@ void debug_show() {
 		putText(imageCorrect, cross_type_name[cross_type], Point(10, 30),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 255, 255), 1,
 			LINE_AA);
+		
+		if (maxWhiteROW) {
+			line(imageCorrect,
+				Point(maxWhiteCOL, 0),
+				Point(maxWhiteCOL, ROWSIMAGE), Scalar(0, 0, 255), 3);
+			
+			line(imageCorrect,
+				Point(0, maxWhiteROW),
+				Point(COLSIMAGE, maxWhiteROW), Scalar(255, 0, 0), 3);
+		}
 	}
 	else if (garage_type != GARAGE_NONE) {
 		COUT1(garage_type_name[garage_type]);
@@ -678,10 +759,17 @@ void debug_show() {
 		putText(imageCorrect, std::to_string(midAdd), Point(100, 150),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
+
+		line(imageCorrect,
+			Point(COLSIMAGE / 2 - 30 * ((midAdd - 4500) / 900), ROWSIMAGE - 10),
+			Point(COLSIMAGE / 2 - 30 * ((midAdd - 4500) / 900), ROWSIMAGE), Scalar(0, 0, 255), 5);
+		line(imageCorrect,
+			Point(COLSIMAGE / 2, ROWSIMAGE - 30),
+			Point(COLSIMAGE / 2, ROWSIMAGE), Scalar(0, 255, 0), 2);
 	}
 
 	if (is_straight0) {
-		putText(imageCorrect, "LStraight", Point(10, 230),
+		putText(imageCorrect, "LStraight", Point(10, 235),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 	}
@@ -691,7 +779,7 @@ void debug_show() {
 		//	LINE_AA); // 显示赛道识别类型
 	}
 	if (is_straight1) {
-		putText(imageCorrect, "RStraight", Point(150, 230),
+		putText(imageCorrect, "RStraight", Point(230, 235),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 	}
@@ -726,12 +814,12 @@ void debug_show() {
 		LINE_AA); // 显示赛道识别类型
 
 
-	putText(imageCorrect, std::to_string(rpts0s_num), Point(150, 220),
-		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0), 1,
+	putText(imageCorrect, std::to_string(rpts0s_num), Point(40, 220),
+		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 125, 0), 1,
 		LINE_AA); // 显示赛道识别类型
 
-	putText(imageCorrect, std::to_string(rpts1s_num), Point(210, 220),
-		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 0, 0), 1,
+	putText(imageCorrect, std::to_string(rpts1s_num), Point(250, 220),
+		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 125, 0), 1,
 		LINE_AA); // 显示赛道识别类型
 
 	

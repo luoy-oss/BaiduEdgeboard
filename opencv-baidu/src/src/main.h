@@ -152,4 +152,7 @@ extern int circle_rptss_num;
 // L½Çµã
 extern int circle_Lpt_rptss_id;
 extern bool circle_Lpt_found;
+
+extern int maxWhiteCOL;
+extern int maxWhiteROW;
 #endif //! __MAIN_H__
