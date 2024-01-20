@@ -347,75 +347,25 @@ int main() {
 		}
 		else {
 			cv::waitKey(400);
+			//十字根据远线控制
+			//float far_rpts0s[FAR_POINTS_MAX_LEN][2];
+			//float far_rpts1s[FAR_POINTS_MAX_LEN][2];
+			int far_rpts_num = 10;
+			for (int i = 1; i <= far_rpts_num; i++) {
+				int x1 = mid_x + (maxWhiteCOL - mid_x) * (1.0 * i / far_rpts_num);
+				int y1 = mid_y + (maxWhiteROW - mid_y) * (1.0 * i / far_rpts_num);
 
-			int c = maxWhiteCOL;
-			int r = maxWhiteROW;
-			float far_rpts0s[FAR_POINTS_MAX_LEN][2];
-			float far_rpts1s[FAR_POINTS_MAX_LEN][2];
-			int far_rpts0s_num = 0;
-			int far_rpts1s_num = 0;
-			const int N = 5;
+				//int x2 = mid_x + (maxWhiteCOL - mid_x) * (1.0 * i / far_rpts_num);
+				//int y2 = mid_y + (maxWhiteROW - mid_y) * (1.0 * i / far_rpts_num);
+				//far_rpts0s[i - 1][0] = x1;
+				//far_rpts0s[i - 1][1] = y1;
+				//far_rpts1s[i - 1][0] = x2;
+				//far_rpts1s[i - 1][1] = y2;
 
-			r = begin_y;
-			for (int i = 0; r > maxWhiteROW; r-= N, i++) {
-				c = maxWhiteCOL;
-				for (; c >= 0; c--) if (AT_IMAGE(&img_raw, c, r) != 255) break;
-				cv::circle(imageCorrect, Point(c, r), 2, Scalar(0, 255, 0));
-				ipts0[i][0] = c;
-				ipts0[i][1] = r;
+				rpts[i - 1][0] = x1;
+				rpts[i - 1][1] = y1;
 			}
-			ipts0_num = maxWhiteROW - begin_y;
-			
-			r = begin_y;
-			for (int i = 0; r > maxWhiteROW; r-= N, i++) {
-				c = maxWhiteCOL;
-				for (; c < COLSIMAGE; c++) if (AT_IMAGE(&img_raw, c, r) != 255) break;
-				cv::circle(imageCorrect, Point(c, r), 2, Scalar(0, 0, 255));
-				ipts1[i][0] = c;
-				ipts1[i][1] = r;
-			}
-			ipts1_num = maxWhiteROW - begin_y;
-			// 原图左右边线
-			int ipts[POINTS_MAX_LEN][2];
-			int ipts_num = 0;
-			r = begin_y;
-			for (int i = 0; r > maxWhiteROW; r-= N, i++) {
-				float x1 = ipts0[i][0];
-				float y1 = ipts0[i][1];
-				float x2 = ipts1[i][0];
-				float y2 = ipts1[i][1];
-
-				ipts[i][0] = (x1 + x2) / 2;
-				ipts[i][1] = r;
-				cv::circle(imageCorrect, Point((int)((x1 + x2) / 2), r), 2, Scalar(255, 0, 0));
-				ipts_num++;
-			}
-			
-			float temp_rpts[POINTS_MAX_LEN][2];
-			int temp_rpts_num = 0;
-
-			// 去畸变+透视变换（mapx，mapy，畸变坐标映射数组）
-			for (int i = 0; i < ipts_num; i++) {
-				temp_rpts[i][0] = mapx[ipts[i][1]][ipts[i][0]];
-				temp_rpts[i][1] = mapy[ipts[i][1]][ipts[i][0]];
-			}
-			temp_rpts_num = ipts_num;
-
-			// 变换后左右边线+滤波
-			float rptsb[POINTS_MAX_LEN][2];
-			int rptsb_num;
-			// 变换后左右边线+等距采样
-			float rptss[POINTS_MAX_LEN][2];
-			int rptss_num;
-
-			// 边线滤波
-			blur_points(temp_rpts, temp_rpts_num, rptsb, (int)round(21));
-			rptsb_num = temp_rpts_num;
-
-			// 边线等距采样
-			rptss_num = sizeof(rptss) / sizeof(rptss[0]);
-			resample_points(rptsb, rptsb_num, rpts, &rptss_num, 1.5 * sample_dist * pixel_per_meter);
-			rpts_num = rptss_num;
+			rpts_num = far_rpts_num;
 
 			//if (track_type == TRACK_LEFT) {
 			//	track_leftline(far_rpts0s + far_Lpt0_rpts0s_id, far_rpts0s_num - far_Lpt0_rpts0s_id, rpts,
