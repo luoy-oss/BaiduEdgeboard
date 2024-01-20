@@ -10,6 +10,8 @@ enum cross_type_e cross_type = CROSS_NONE;
 const char* cross_type_name[CROSS_NUM] = {
         "CROSS_NONE",
         "CROSS_BEGIN", "CROSS_IN",
+        "CROSS_BEGIN_HALF_LEFT", "CROSS_IN_HALF_LEFT",
+        "CROSS_BEGIN_HALF_RIGHT", "CROSS_IN_HALF_RIGHT",
 };
 
 //// 编码器值，用于防止一些重复触发等。
@@ -61,31 +63,124 @@ int maxWhiteROW = 0;
 void check_cross() {
     bool Xfound = Lpt0_found && Lpt1_found;
     if (cross_type == CROSS_NONE && Xfound) cross_type = CROSS_BEGIN;
+    if (Lpt0_found || Lpt1_found) {
+        half_check();
+    }
+}
+
+void half_check() {
+    if (Lpt0_found) {
+        int x1 = rpts0s[Lpt0_rpts0s_id][0], y1 = rpts0s[Lpt0_rpts0s_id][1];
+        for (; y1 > 0; y1--) if (AT_IMAGE(&img_raw, x1, y1 - 1) < thres) break;
+        
+        if (AT_IMAGE(&img_raw, x1, y1) >= thres) {
+            findline_lefthand_adaptive(&img_raw, block_size, clip_value, x1, y1, far_ipts0, &far_ipts0_num);
+        }
+        else far_ipts0_num = 0;
+
+        // 去畸变+透视变换
+        for (int i = 0; i < far_ipts0_num; i++) {
+            far_rpts0[i][0] = mapx[far_ipts0[i][1] * IMAGESCALE][far_ipts0[i][0] * IMAGESCALE] / IMAGESCALE;
+            far_rpts0[i][1] = mapy[far_ipts0[i][1] * IMAGESCALE][far_ipts0[i][0] * IMAGESCALE] / IMAGESCALE;
+        }
+        far_rpts0_num = far_ipts0_num;
+
+        // 边线滤波
+        blur_points(far_rpts0, far_rpts0_num, far_rpts0b, (int)round(line_blur_kernel));
+        far_rpts0b_num = far_rpts0_num;
+     
+        // 边线等距采样
+        far_rpts0s_num = sizeof(far_rpts0s) / sizeof(far_rpts0s[0]);
+        resample_points(far_rpts0b, far_rpts0b_num, far_rpts0s, &far_rpts0s_num, 1.5 * sample_dist * pixel_per_meter);
+  
+        // 边线局部角度变化率
+        local_angle_points(far_rpts0s, far_rpts0s_num, far_rpts0a, (int)round(angle_dist / sample_dist));
+        far_rpts0a_num = far_rpts0s_num;
+        
+        // 角度变化率非极大抑制
+        nms_angle(far_rpts0a, far_rpts0a_num, far_rpts0an, (int)round(angle_dist / sample_dist) * 2 + 1);
+        far_rpts0an_num = far_rpts0a_num;
+        
+        // 找远线上的L角点
+        far_Lpt0_found = far_Lpt1_found = false;
+        for (int i = 0; i < MIN(far_rpts0s_num, 80); i++) {
+            if (far_rpts0an[i] == 0) continue;
+            int im1 = clip(i - (int)round(angle_dist / sample_dist), 0, far_rpts0s_num - 1);
+            int ip1 = clip(i + (int)round(angle_dist / sample_dist), 0, far_rpts0s_num - 1);
+            float conf = fabs(far_rpts0a[i]) - (fabs(far_rpts0a[im1]) + fabs(far_rpts0a[ip1])) / 2;
+            if (70. / 180. * PI < conf && conf < 110. / 180. * PI && i < 100) {
+                far_Lpt0_rpts0s_id = i;
+                far_Lpt0_found = true;
+                break;
+            }
+        }
+
+        if (far_Lpt0_found) {
+            cross_type = CROSS_BEGIN_HALF_LEFT;
+        }
+    }
+
+    if (Lpt1_found) {
+        int x1 = rpts1s[Lpt1_rpts1s_id][0], y1 = rpts1s[Lpt1_rpts1s_id][1];
+        for (; y1 > 0; y1--) if (AT_IMAGE(&img_raw, x1, y1 - 1) < thres) break;
+
+        if (AT_IMAGE(&img_raw, x1, y1) >= thres) {
+            findline_lefthand_adaptive(&img_raw, block_size, clip_value, x1, y1, far_ipts1, &far_ipts1_num);
+        }
+        else far_ipts1_num = 0;
+
+        // 去畸变+透视变换
+        for (int i = 0; i < far_ipts1_num; i++) {
+            far_rpts1[i][0] = mapx[far_ipts1[i][1] * IMAGESCALE][far_ipts1[i][0] * IMAGESCALE] / IMAGESCALE;
+            far_rpts1[i][1] = mapy[far_ipts1[i][1] * IMAGESCALE][far_ipts1[i][0] * IMAGESCALE] / IMAGESCALE;
+        }
+        far_rpts1_num = far_ipts1_num;
+
+        // 边线滤波
+        blur_points(far_rpts1, far_rpts1_num, far_rpts1b, (int)round(line_blur_kernel));
+        far_rpts1b_num = far_rpts1_num;
+
+        // 边线等距采样
+        far_rpts1s_num = sizeof(far_rpts1s) / sizeof(far_rpts1s[1]);
+        resample_points(far_rpts1b, far_rpts1b_num, far_rpts1s, &far_rpts1s_num, 1.5 * sample_dist * pixel_per_meter);
+
+        // 边线局部角度变化率
+        local_angle_points(far_rpts1s, far_rpts1s_num, far_rpts1a, (int)round(angle_dist / sample_dist));
+        far_rpts1a_num = far_rpts1s_num;
+
+        // 角度变化率非极大抑制
+        nms_angle(far_rpts1a, far_rpts1a_num, far_rpts1an, (int)round(angle_dist / sample_dist) * 2 + 1);
+        far_rpts1an_num = far_rpts1a_num;
+
+        // 找远线上的L角点
+        far_Lpt1_found = far_Lpt1_found = false;
+        for (int i = 0; i < MIN(far_rpts1s_num, 80); i++) {
+            if (far_rpts1an[i] == 0) continue;
+            int im1 = clip(i - (int)round(angle_dist / sample_dist), 0, far_rpts1s_num - 1);
+            int ip1 = clip(i + (int)round(angle_dist / sample_dist), 0, far_rpts1s_num - 1);
+            float conf = fabs(far_rpts1a[i]) - (fabs(far_rpts1a[im1]) + fabs(far_rpts1a[ip1])) / 2;
+            if (70. / 180. * PI < conf && conf < 110. / 180. * PI && i < 100) {
+                far_Lpt1_rpts1s_id = i;
+                far_Lpt1_found = true;
+                break;
+            }
+        }
+
+        if (far_Lpt1_found) {
+            cross_type = CROSS_BEGIN_HALF_RIGHT;
+        }
+    }
+}
+
+void run_cross_half() {
+
 }
 
 int cross_count = 0;
 void run_cross() {
     bool Xfound = Lpt0_found && Lpt1_found;
-    //    int64_t current_encoder = get_total_encoder();
     float Lpt0y = rpts0s[Lpt0_rpts0s_id][1];
     float Lpt1y = rpts1s[Lpt1_rpts1s_id][1];
-
-    maxWhiteCOL = 160;
-    maxWhiteROW = 0;
-    // 寻找最长白列
-    if (cross_type != CROSS_NONE) {
-        int maxWhiteCount = 0;
-        for (int c = 0; c < COLSIMAGE / IMAGESCALE; c++) {
-            int r = begin_y;
-            for (; r >= 0; r--) if (AT_IMAGE(&img_raw, c, r) != 255) break;
-
-            if (begin_y - r > maxWhiteCount) {
-                maxWhiteCount = begin_y - r;
-                maxWhiteCOL = c;
-                maxWhiteROW = r;
-            }
-        }
-    }
 
     //检测到十字，先按照近线走
     if (cross_type == CROSS_BEGIN) {
@@ -112,44 +207,26 @@ void run_cross() {
     }
     //远线控制进十字,begin_y渐变靠近防丢线
     else if (cross_type == CROSS_IN) {
-        //if (cross_count++ > 60) {
-        //    cross_count = 0;
-        //    cross_type = CROSS_NONE;
-        //}
-        ////寻远线,算法与近线相同
-        //cross_farline();
-
-        //if (rpts1s_num < 5 && rpts0s_num < 5) { not_have_line++; }
-        //if (not_have_line > 2 && rpts1s_num > 20 && rpts0s_num > 20) {
-        //    cross_type = CROSS_NONE;
-        //    not_have_line = 0;
-        //}
-        //if (far_Lpt1_found) { track_type = TRACK_RIGHT; }
-        //else if (far_Lpt0_found) { track_type = TRACK_LEFT; }
-        //else if (not_have_line > 0 && rpts1s_num < 5) { track_type = TRACK_RIGHT; }
-        //else if (not_have_line > 0 && rpts0s_num < 5) { track_type = TRACK_LEFT; }
-
-        //if (track_type == TRACK_RIGHT && far_rpts1s[far_Lpt1_rpts1s_id][0] > 240) {
-        //    track_type = TRACK_LEFT;
-        //}
-
         if (cross_count++ > 60) {
             cross_count = 0;
             cross_type = CROSS_NONE;
         }
+        //寻远线,算法与近线相同
+        cross_farline();
+
         if (rpts1s_num < 5 && rpts0s_num < 5) { not_have_line++; }
         if (not_have_line > 2 && rpts1s_num > 20 && rpts0s_num > 20) {
             cross_type = CROSS_NONE;
             not_have_line = 0;
         }
-        /*if (far_Lpt1_found) { track_type = TRACK_RIGHT; }
+        if (far_Lpt1_found) { track_type = TRACK_RIGHT; }
         else if (far_Lpt0_found) { track_type = TRACK_LEFT; }
         else if (not_have_line > 0 && rpts1s_num < 5) { track_type = TRACK_RIGHT; }
         else if (not_have_line > 0 && rpts0s_num < 5) { track_type = TRACK_LEFT; }
 
         if (track_type == TRACK_RIGHT && far_rpts1s[far_Lpt1_rpts1s_id][0] > 240) {
             track_type = TRACK_LEFT;
-        }*/
+        }
 
     }
 }

@@ -330,7 +330,17 @@ int main() {
 			circle_type = CIRCLE_NONE;
 		}
 		//根据检查结果执行模式
-		if (cross_type != CROSS_NONE) run_cross();
+		if (cross_type != CROSS_NONE) {
+			if (cross_type == CROSS_BEGIN || cross_type == CROSS_IN) {
+				run_cross();
+			}
+			else if(cross_type == CROSS_BEGIN_HALF_LEFT ||
+					cross_type == CROSS_IN_HALF_LEFT	||
+					cross_type == CROSS_BEGIN_HALF_RIGHT||
+					cross_type == CROSS_IN_HALF_RIGHT	) {
+				run_cross_half();
+			}
+		}
 		if (circle_type != CIRCLE_NONE) run_circle();
 		if (garage_type != GARAGE_NONE) run_garage();
 
@@ -346,37 +356,37 @@ int main() {
 			}
 		}
 		else {
-			cv::waitKey(400);
-			//十字根据远线控制
-			//float far_rpts0s[FAR_POINTS_MAX_LEN][2];
-			//float far_rpts1s[FAR_POINTS_MAX_LEN][2];
-			int far_rpts_num = 10;
-			for (int i = 1; i <= far_rpts_num; i++) {
-				int x1 = mid_x + (maxWhiteCOL - mid_x) * (1.0 * i / far_rpts_num);
-				int y1 = mid_y + (maxWhiteROW - mid_y) * (1.0 * i / far_rpts_num);
+			//cv::waitKey(400);
+			////十字根据远线控制
+			////float far_rpts0s[FAR_POINTS_MAX_LEN][2];
+			////float far_rpts1s[FAR_POINTS_MAX_LEN][2];
+			//int far_rpts_num = 10;
+			//for (int i = 1; i <= far_rpts_num; i++) {
+			//	int x1 = mid_x + (maxWhiteCOL - mid_x) * (1.0 * i / far_rpts_num);
+			//	int y1 = mid_y + (maxWhiteROW - mid_y) * (1.0 * i / far_rpts_num);
 
-				//int x2 = mid_x + (maxWhiteCOL - mid_x) * (1.0 * i / far_rpts_num);
-				//int y2 = mid_y + (maxWhiteROW - mid_y) * (1.0 * i / far_rpts_num);
-				//far_rpts0s[i - 1][0] = x1;
-				//far_rpts0s[i - 1][1] = y1;
-				//far_rpts1s[i - 1][0] = x2;
-				//far_rpts1s[i - 1][1] = y2;
+			//	//int x2 = mid_x + (maxWhiteCOL - mid_x) * (1.0 * i / far_rpts_num);
+			//	//int y2 = mid_y + (maxWhiteROW - mid_y) * (1.0 * i / far_rpts_num);
+			//	//far_rpts0s[i - 1][0] = x1;
+			//	//far_rpts0s[i - 1][1] = y1;
+			//	//far_rpts1s[i - 1][0] = x2;
+			//	//far_rpts1s[i - 1][1] = y2;
 
-				rpts[i - 1][0] = x1;
-				rpts[i - 1][1] = y1;
+			//	rpts[i - 1][0] = x1;
+			//	rpts[i - 1][1] = y1;
+			//}
+			//rpts_num = far_rpts_num;
+
+			if (track_type == TRACK_LEFT) {
+				track_leftline(far_rpts0s + far_Lpt0_rpts0s_id, far_rpts0s_num - far_Lpt0_rpts0s_id, rpts,
+					(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
+				rpts_num = far_rpts0s_num - far_Lpt0_rpts0s_id;
 			}
-			rpts_num = far_rpts_num;
-
-			//if (track_type == TRACK_LEFT) {
-			//	track_leftline(far_rpts0s + far_Lpt0_rpts0s_id, far_rpts0s_num - far_Lpt0_rpts0s_id, rpts,
-			//		(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
-			//	rpts_num = far_rpts0s_num - far_Lpt0_rpts0s_id;
-			//}
-			//else {
-			//	track_rightline(far_rpts1s + far_Lpt1_rpts1s_id, far_rpts1s_num - far_Lpt1_rpts1s_id, rpts,
-			//		(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
-			//	rpts_num = far_rpts1s_num - far_Lpt1_rpts1s_id;
-			//}
+			else {
+				track_rightline(far_rpts1s + far_Lpt1_rpts1s_id, far_rpts1s_num - far_Lpt1_rpts1s_id, rpts,
+					(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
+				rpts_num = far_rpts1s_num - far_Lpt1_rpts1s_id;
+			}
 			
 		}
 
