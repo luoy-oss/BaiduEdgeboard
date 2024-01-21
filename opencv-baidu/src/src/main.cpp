@@ -20,6 +20,7 @@
 #include "../code/uart.h"
 #endif
 
+
 #include <ctime>
 using namespace cv;
 
@@ -38,12 +39,12 @@ Mat imageCorrect;	//赛道元素
 //访问方式非常简单，可以直接使用下标的方式访问
 //例如访问第10行 50列的点，mt9v03x_csi_image[10][50]就可以了
 //uint8(*mt9v03x_csi_image)[MT9V03X_CSI_W];
-uint8_t img_thres_data[ROWSIMAGE/IMAGESCALE][COLSIMAGE/IMAGESCALE];
-uint8_t img_line_data[ROWSIMAGE/IMAGESCALE][COLSIMAGE/IMAGESCALE];
+uint8_t img_thres_data[ROWSIMAGE][COLSIMAGE];
+uint8_t img_line_data[ROWSIMAGE][COLSIMAGE];
 
-//image_t img_raw(NULL, COLSIMAGE/IMAGESCALE, ROWSIMAGE/IMAGESCALE);
-image_t img_thres((uint8_t*)img_thres_data, COLSIMAGE/IMAGESCALE, ROWSIMAGE/IMAGESCALE);
-image_t img_line((uint8_t*)img_line_data, COLSIMAGE/IMAGESCALE, ROWSIMAGE/IMAGESCALE);
+//image_t img_raw(NULL, COLSIMAGE, ROWSIMAGE);
+image_t img_thres((uint8_t*)img_thres_data, COLSIMAGE, ROWSIMAGE);
+image_t img_line((uint8_t*)img_line_data, COLSIMAGE, ROWSIMAGE);
 
 // line_show_sample在cross.c中的draw_cross()中被调用
 bool line_show_sample = true;
@@ -56,15 +57,15 @@ float clip_value = 2;
 // float begin_x = 25;
 // float begin_y = 170;
 
-float begin_x = 15 / IMAGESCALE;
-float begin_y = 170 / IMAGESCALE;
+float begin_x = 15;
+float begin_y = 170;
 
 float line_blur_kernel = 7;//原7
-float pixel_per_meter = 94 / IMAGESCALE;//平移像素，拟合中线
-float sample_dist = 0.02 * IMAGESCALE;
-float angle_dist = 0.2 * IMAGESCALE;
-float far_rate = 0.5 / IMAGESCALE;
-float aim_distance = 0.68 / IMAGESCALE;
+float pixel_per_meter = 94;//平移像素，拟合中线
+float sample_dist = 0.02;
+float angle_dist = 0.2;
+float far_rate = 0.5;
+float aim_distance = 0.68;
 bool adc_cross = false;
 
 //↓↓↓↓↓extern pid_param_t servo_pid;
@@ -140,7 +141,13 @@ int speed_slow = 24;
 int speed_add = 32;
 
 
+double FPS = 0;
 int main() {
+
+
+	
+
+
 #ifndef _WIN32
 	// USB转串口的设备名为 /dev/ttyUSB0
 	driver = std::make_shared<Driver>("/dev/ttyUSB0", BaudRate::BAUD_115200);
@@ -167,7 +174,7 @@ int main() {
 	//VideoCapture cap(0);
 	std::string video = "lx.mp4";
 	video = "./video/result_best.mp4";
-	video = "./video/cross_half.mp4";
+//	video = "./video/cross_half.mp4";
 	VideoCapture cap(video);
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
@@ -184,8 +191,8 @@ int main() {
 	while (1) {
 		//circle_type = CIRCLE_LEFT_IN;
 		//circle_type = CIRCLE_RIGHT_IN;
-		lineFrame = Mat::zeros(cv::Size(COLSIMAGE/IMAGESCALE, ROWSIMAGE / IMAGESCALE), CV_8UC1);
-		nitoushi = Mat::zeros(cv::Size(COLSIMAGE / IMAGESCALE, ROWSIMAGE / IMAGESCALE), CV_8UC1);
+		lineFrame = Mat::zeros(cv::Size(320, 240), CV_8UC1);
+		nitoushi = Mat::zeros(cv::Size(320, 240), CV_8UC1);
 		cap >> frame;
 
 #ifdef CAR_SAVEIMG
@@ -197,6 +204,31 @@ int main() {
 		imageCorrect = frame.clone();
 #endif 
 
+		// 		auto feeds = detection.preprocess(frame, {320, 320});
+
+		// 		detection.run(*feeds);
+		// 		// get result
+		// 		detection.render();
+
+		// 		Mat imageAi = frame.clone();
+		// 		detection.drawBox(imageAi);
+		// #ifdef CAR_SAVEIMG
+		// 		static int ai = 1;
+		// 		std::string aifilename = "../frame/imageAi" + std::to_string(ai++) + ".jpg";
+		// 		imwrite(aifilename, imageAi);
+		// #endif
+
+				// 处理帧时长监测
+		static auto preTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch())
+			.count();
+		auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch())
+			.count();
+		std::cout << "run frame time : " << startTime - preTime << "ms" << std::endl;
+		FPS = (double)1000.0 / (startTime - preTime);
+		preTime = startTime;
+
 		//frame = imread("f4.jpg");
 		cvtColor(frame, frame, COLOR_BGR2GRAY);
 		threshold(frame, frame, 0, 255, THRESH_OTSU);
@@ -205,17 +237,6 @@ int main() {
 		std::string bifilename = "../frame/bi_frame" + std::to_string(bi++) + ".jpg";
 		imwrite(bifilename, frame);
 #endif
-		//// 处理帧时长监测
-		//static auto preTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-		//	std::chrono::system_clock::now().time_since_epoch())
-		//	.count();
-		//auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-		//	std::chrono::system_clock::now().time_since_epoch())
-		//	.count();
-		//std::cout << "run frame time : " << startTime - preTime << "ms" << std::endl;
-		//float detFPS = (float)1000.f / (startTime - preTime);
-		//preTime = startTime;
-
 		frameTOimg_raw(frame);
 		process_image();
 		/*{
@@ -237,6 +258,12 @@ int main() {
 				speed_normal = 24;
 				mid_x = 163;
 				break;
+			case CIRCLE_LEFT_IN:
+				speed_normal = 19;
+				break;
+			case CIRCLE_RIGHT_IN:
+				speed_normal = 19;
+				break;
 			case CIRCLE_LEFT_RUNNING:
 				if (rpts1s_num >= 60) {
 					int id1 = MIN(20, rptsn_num - 1);
@@ -245,13 +272,13 @@ int main() {
 					radius = radius_3pts(rptsn[id1], rptsn[id2], rptsn[id3]);
 					if (!isnan(radius)) {
 						if (radius > 70) {
-							speed_normal = speed_slow = 25;
+							speed_normal = speed_slow = 27;
 						}
 						else if (radius > 60) {
-							speed_normal = speed_slow = 22;
+							speed_normal = speed_slow = 24;
 						}
 						else if (radius > 30) {
-							speed_normal = speed_slow = 18;
+							speed_normal = speed_slow = 20;
 						}
 					}
 				}
@@ -269,13 +296,13 @@ int main() {
 					radius = radius_3pts(rptsn[id1], rptsn[id2], rptsn[id3]);
 					if (!isnan(radius)) {
 						if (radius > 70) {
-							speed_normal = speed_slow = 25;
+							speed_normal = speed_slow = 27;
 						}
 						else if (radius > 60) {
-							speed_normal = speed_slow = 22;
+							speed_normal = speed_slow = 24;
 						}
 						else if (radius > 30) {
-							speed_normal = speed_slow = 18;
+							speed_normal = speed_slow = 20;
 						}
 					}
 				}
@@ -293,12 +320,24 @@ int main() {
 		}
 		else if (cross_type != CROSS_NONE) {
 			//aim_distance = 0.4;
+			switch (cross_type) {
+			case CROSS_BEGIN:
+				speed_normal = 18;
+				aim_distance = 0.58;
+				break;
+			default:
+				break;
+			}
 		}
 		else {
-			speed_normal = 25;
-			speed_fast = 37;
-			speed_slow = 19;
-			speed_add = 28;
+			// speed_normal = 21;
+			// speed_fast = 21;
+			// speed_slow = 17;
+			// speed_add = 21;
+			speed_normal = 22;
+			speed_fast = 24;
+			speed_slow = 17;
+			speed_add = 30;
 			mid_x = 160;
 			aim_distance = 0.74;
 		}
@@ -327,13 +366,11 @@ int main() {
 			check_cross();
 			check_Half();
 		}
-			
 		if (garage_type == GARAGE_NONE && cross_type == CROSS_NONE)
 			check_circle();
 		if (cross_type != CROSS_NONE) {
 			circle_type = CIRCLE_NONE;
 		}
-
 		//根据检查结果执行模式
 		if (cross_type != CROSS_NONE) run_cross();
 		if (circle_type != CIRCLE_NONE) run_circle();
@@ -351,9 +388,6 @@ int main() {
 			}
 		}
 		else {
-			if (cross_type == CROSS_HALF_LEFT || cross_type == CROSS_HALF_RIGHT) {
-				waitKey(1000);
-			}
 			//十字根据远线控制
 			if (track_type == TRACK_LEFT) {
 				track_leftline(far_rpts0s + far_Lpt0_rpts0s_id, far_rpts0s_num - far_Lpt0_rpts0s_id, rpts,
@@ -369,13 +403,13 @@ int main() {
 
 		{
 			// 车轮对应点(纯跟踪起始点)
-			// for (int r = 0; r < ROWSIMAGE/IMAGESCALE; r++) {
-			// 	if ((int)mapx[COLSIMAGE/IMAGESCALE / 2][r] == 161) {
-					// COUT2("r:" + to_string(r),mapy[COLSIMAGE/IMAGESCALE / 2][r]);
+			// for (int r = 0; r < ROWSIMAGE; r++) {
+			// 	if ((int)mapx[COLSIMAGE / 2][r] == 161) {
+					// COUT2("r:" + to_string(r),mapy[COLSIMAGE / 2][r]);
 			// 	}
 			// }
-			float cx = mid_x / IMAGESCALE;//161;//mapx[COLSIMAGE/IMAGESCALE / 2][164]/*为161.525*/;
-			float cy = mid_y / IMAGESCALE;//230;
+			float cx = mid_x;//161;//mapx[COLSIMAGE / 2][164]/*为161.525*/;
+			float cy = mid_y;//230;
 			// draw_x(&img_line, cx, cy, 2, 255);
 			// 找最近点(起始点中线归一化)
 			float min_dist = 1e10;
@@ -409,7 +443,7 @@ int main() {
 				// 近预锚点位置
 				int aim_idx_near = clip(round(0.25 / sample_dist), 0, rptsn_num - 1);
 
-				draw_o(&img_line, rptsn[begin_id][0], rptsn[begin_id][1], 4/IMAGESCALE, 255);
+				draw_o(&img_line, rptsn[begin_id][0], rptsn[begin_id][1], 3, 255);
 				// 计算远锚点偏差值
 				float dx = rptsn[aim_idx][0] - cx;
 				float dy = cy - rptsn[aim_idx][1] + 0.2 * pixel_per_meter;
@@ -428,7 +462,7 @@ int main() {
 					midAdd = -125;
 				}
 
-				bias_p = (rptsn[aim_idx][0] - cx) * IMAGESCALE;
+				bias_p = rptsn[aim_idx][0] - cx;
 				bias_d = bias_p - bias_p_last;
 				bias_p_last = bias_p;
 				// bias_i = 0.0;
@@ -447,6 +481,12 @@ int main() {
 				// }
 
 				long double P = (bias_p * bias_p) / 63 + 3.2;
+				if (is_straight0 && is_straight1) {
+					P = (bias_p * bias_p) / 63 + 1.2;
+				}
+				else {
+					P = (bias_p * bias_p) / 63 + 4.2;
+				}
 				speed = P;
 				// COUT1(P);
 				ctr = (long double)bias_p * P/*9.5*/ + (long double)bias_i * Ki + (long double)bias_d * Kd;
@@ -496,24 +536,23 @@ int main() {
 			}
 			// 绘制锚点
 			int aim_idx = clip(round(aim_distance / sample_dist), 0, rptsn_num - 1);
-			draw_x(&img_line, rptsn[aim_idx][0], rptsn[aim_idx][1], 4 / IMAGESCALE, 255);
+			draw_x(&img_line, rptsn[aim_idx][0], rptsn[aim_idx][1], 3, 255);
 			// 绘制角点
 			if (Lpt0_found) {
-				draw_x(&img_line, rpts0s[Lpt0_rpts0s_id][0], rpts0s[Lpt0_rpts0s_id][1], 4 / IMAGESCALE, 255);
+				draw_x(&img_line, rpts0s[Lpt0_rpts0s_id][0], rpts0s[Lpt0_rpts0s_id][1], 3, 255);
 			}
 			if (Lpt1_found) {
-				draw_x(&img_line, rpts1s[Lpt1_rpts1s_id][0], rpts1s[Lpt1_rpts1s_id][1], 4 / IMAGESCALE, 255);
+				draw_x(&img_line, rpts1s[Lpt1_rpts1s_id][0], rpts1s[Lpt1_rpts1s_id][1], 3, 255);
 			}
 		}
 #ifdef CAR_DEBUG
-		// static int i = 0;
-		// std::string file = "./frame/" + std::to_string(++i) + ".jpg";
-		// imwrite(file, imageCorrect);
-
 		debug_show();
 		show_line();
+#endif
+#ifdef CAR_SHOW
+
 		imshow("frame", frame);
-		waitKey(10);
+		waitKey(1);
 #endif
 
 #ifndef _WIN32
@@ -542,7 +581,7 @@ int main() {
 				bias_i = 0;
 			}
 			driver->carControl(start_speed_count++, midAdd); // 串口通信，姿态与速度控制
-			if (start_speed_count >= speed_normal) {
+			if (start_speed_count >= 15) {
 				is_start = false;
 			}
 		}
@@ -596,7 +635,7 @@ int main() {
 		sendData[5] = 0x00;
 		sendData[6] = 0x00;
 		sendData[7] = 0x21;
-		//speed = speed_control();
+		speed = speed_control();
 		//driver->WriteData(sendData, 8);//这个函数就是给串口发送数据的函数，sendData就是要发送的数组
 #endif
 
@@ -609,12 +648,19 @@ int main() {
 
 void debug_show() {
 	// 显示赛道识别类型
+
+	for (int i = 0; i < rptsn_num; i++) {
+		int p[2];
+		map_inv(rptsn[i], p);
+		circle(imageCorrect, Point(p[0], p[1]), 1, Scalar(255, 0, 0), -1);
+	}
+
 	if (circle_type != CIRCLE_NONE) {
 		putText(imageCorrect, "up_y_e:", Point(150, 200),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 			LINE_AA); // 显示赛道识别类型
 
-		if(circle_type == CIRCLE_LEFT_IN || circle_type == CIRCLE_RIGHT_IN){
+		if (circle_type == CIRCLE_LEFT_IN) {
 			putText(imageCorrect, std::to_string(circle_rptss[circle_Lpt_rptss_id][1]), Point(230, 200),
 				cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
 				LINE_AA); // 显示赛道识别类型
@@ -635,62 +681,36 @@ void debug_show() {
 		putText(imageCorrect, cross_type_name[cross_type], Point(10, 30),
 			cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 255, 255), 1,
 			LINE_AA);
-		
-		if (maxWhiteROW) {
+
+
+		if (cross_type == CROSS_HALF_LEFT) {
+			cv::circle(imageCorrect, Point(far_x11, far_y11), 10, Scalar(0, 0, 255), -1);
+	
+			cv::circle(imageCorrect, Point(far_x11, far_y11), 5, Scalar(0, 255, 0), -1);
 			line(imageCorrect,
-				Point(maxWhiteCOL, 0),
-				Point(maxWhiteCOL, ROWSIMAGE), Scalar(0, 0, 255), 3);
-			
-			line(imageCorrect,
-				Point(0, maxWhiteROW),
-				Point(COLSIMAGE, maxWhiteROW), Scalar(255, 0, 0), 3);
-		}
-		/*cv::circle(imageCorrect, Point(far_x11, far_y11), 5, Scalar(0, 0, 255), -1);
-		line(imageCorrect,
 				Point(far_x11, far_y11),
-				Point(far_x11, ROWSIMAGE - 1), Scalar(0, 0, 255), 2);*/
-
-		cv::circle(imageCorrect, Point(far_x22, far_y22), 5, Scalar(0, 255, 0), -1);
-
-		line(imageCorrect,
-			Point(far_x22, far_y22),
-			Point(far_x22, ROWSIMAGE - 1), Scalar(0, 255, 0), 2);
-
-		if (cross_type == CROSS_HALF) {
-		}
-		else {
-			line(imageCorrect,
-				Point(far_x1, far_y1),
-				Point(far_x1, ROWSIMAGE - 1), Scalar(0, 0, 255), 3);
-
-			cv::circle(imageCorrect, Point(far_x2, far_y2), 10, Scalar(0, 255, 0), -1);
-
-			line(imageCorrect,
-				Point(far_x2, far_y2),
-				Point(far_x2, ROWSIMAGE - 1), Scalar(0, 255, 0), 3);
+				Point(far_x11, ROWSIMAGE - 1), Scalar(0, 0, 255), 2);
+			
+			for (int i = 0; i < far_rpts0s_num; i++) {
+				int p[2];
+				map_inv(far_rpts0s[i], p);
+				cv::circle(imageCorrect, Point(p[0], p[1]), 1, Scalar(0, 0, 255), -1);
+			}
 		}
 
-		//if (Lpt0_found) {
-		//	int p[2];
-		//	map_inv(rpts0s[Lpt0_rpts0s_id], p);
-		//	p[0] -= 10;
-		//	cv::circle(imageCorrect, Point(p[0], p[1]), 10, Scalar(0, 0, 255), -1);
+		if (cross_type == CROSS_HALF_RIGHT) {
+			cv::circle(imageCorrect, Point(far_x22, far_y22), 5, Scalar(0, 255, 0), -1);
 
-		//	line(imageCorrect,
-		//		Point(p[0], p[1]),
-		//		Point(p[0], 0), Scalar(0, 0, 255), 3);
-		//}
-
-		//if (Lpt1_found) {
-		//	int p[2];
-		//	map_inv(rpts1s[Lpt1_rpts1s_id], p);
-		//	p[0] += 10;
-		//	cv::circle(imageCorrect, Point(p[0], p[1]), 10, Scalar(0, 255, 0), -1);
-
-		//	line(imageCorrect,
-		//		Point(p[0], p[1]),
-		//		Point(p[0], 0), Scalar(0, 255, 0), 3);
-		//}
+			line(imageCorrect,
+				Point(far_x22, far_y22),
+				Point(far_x22, ROWSIMAGE - 1), Scalar(0, 255, 0), 2);
+		
+			for (int i = 0; i < far_rpts1s_num; i++) {
+				int p[2];
+				map_inv(far_rpts1s[i], p);
+				cv::circle(imageCorrect, Point(p[0], p[1]), 1, Scalar(0, 255, 0), -1);
+			}
+		}
 	}
 	else if (garage_type != GARAGE_NONE) {
 		COUT1(garage_type_name[garage_type]);
@@ -805,27 +825,33 @@ void debug_show() {
 		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(255, 125, 0), 1,
 		LINE_AA); // 显示赛道识别类型
 
-	
-	
+	putText(imageCorrect, "FPS", Point(10, 170),
+		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+		LINE_AA); // 显示赛道识别类型
+
+	putText(imageCorrect, std::to_string(FPS), Point(100, 170),
+		cv::FONT_HERSHEY_TRIPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+		LINE_AA); // 显示赛道识别类型
+
 	for (int i = 0; i < ipts0_num; i++) {
-		int c = clip(ipts0[i][0] * IMAGESCALE, 0, COLSIMAGE - 1);
-		int r = clip(ipts0[i][1] * IMAGESCALE, 0, ROWSIMAGE - 1);
+		int c = ipts0[i][0];
+		int r = ipts0[i][1];
 		MAT_AT_SET(imageCorrect, r, c, 0, 0, 255);
-		
+
 	}
 
 	for (int i = 0; i < ipts1_num; i++) {
-		int c = clip(ipts1[i][0] * IMAGESCALE, 0, COLSIMAGE - 1);
-		int r = clip(ipts1[i][1] * IMAGESCALE, 0, ROWSIMAGE - 1);
+		int c = ipts1[i][0];
+		int r = ipts1[i][1];
 		MAT_AT_SET(imageCorrect, r, c, 0, 255, 0);
 		//imageCorrect.at<Vec3b>(r, c)[0] = 0;
 		//imageCorrect.at<Vec3b>(r, c)[1] = 255;
 		//imageCorrect.at<Vec3b>(r, c)[2] = 0;
 	}
-	
+
 	for (int i = 0; i < circle_ipts_num; i++) {
-		int c = clip(circle_ipts[i][0] * IMAGESCALE, 0, COLSIMAGE - 1);
-		int r = clip(circle_ipts[i][1] * IMAGESCALE, 0, ROWSIMAGE - 1);
+		int c = circle_ipts[i][0];
+		int r = circle_ipts[i][1];
 		//MAT_AT_SET(imageCorrect, r, c, 0, 125, 125);
 		cv::circle(imageCorrect, Point(c, r), 1, Scalar(0, 215, 255));
 	}
@@ -834,7 +860,9 @@ void debug_show() {
 	std::string filename = "../frame/imageCorrect" + std::to_string(ii++) + ".jpg";
 	imwrite(filename, imageCorrect);
 #endif
-	imshow("imageCorrect", imageCorrect);
 
+#ifdef CAR_SHOW
+	imshow("imageCorrect", imageCorrect);
+#endif
 
 }

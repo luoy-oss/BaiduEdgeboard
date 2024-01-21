@@ -59,13 +59,22 @@ int not_have_line = 0;
 
 int far_x1 = 76, far_x2 = 244, far_y1, far_y2;
 int far_x11 = 76, far_x22 = 244, far_y11, far_y22;
-int maxWhiteCOL = 160;
-int maxWhiteROW = 0;
 
 //双L角点,切十字模式
 void check_cross() {
     bool Xfound = Lpt0_found && Lpt1_found;
-    if (cross_type == CROSS_NONE && Xfound) cross_type = CROSS_BEGIN;
+    if (Xfound) {
+        // 左L点在右L点上方，使用右L点
+        if (rpts0s[clip(Lpt0_rpts0s_id, 0, rpts0s_num - 1)][1] < rpts0s[clip(Lpt0_rpts0s_id, 0, rpts0s_num - 1)][1]) {
+            Lpt0_found = false;
+            check_Half_right();
+        }
+        else {
+            Lpt1_found = false;
+            check_Half_left();
+        }
+    }
+    //if (cross_type == CROSS_NONE && Xfound) cross_type = CROSS_BEGIN;
 }
 
 void check_Half() {
@@ -120,7 +129,7 @@ void run_cross() {
     bool Xfound = Lpt0_found && Lpt1_found;
     float Lpt0y = rpts0s[Lpt0_rpts0s_id][1];
     float Lpt1y = rpts1s[Lpt1_rpts1s_id][1];
-    
+
     //检测到十字，先按照近线走
     if (cross_type == CROSS_BEGIN) {
         if (cross_count++ > 30) {
@@ -174,6 +183,7 @@ void run_cross() {
         if (rpts0s_num < 5) { not_have_line++; }
         if (not_have_line > 2 & rpts1s_num > 20 && rpts0s_num > 20) {
             cross_type = CROSS_NONE;
+            not_have_line = 0;
         }
 
     }
@@ -184,6 +194,7 @@ void run_cross() {
         if (rpts1s_num < 5) { not_have_line++; }
         if (not_have_line > 2 & rpts1s_num > 20 && rpts0s_num > 20) {
             cross_type = CROSS_NONE;
+            not_have_line = 0;
         }
     }
 
@@ -456,7 +467,7 @@ void cross_farline_L() {
 }
 
 void cross_farline_R() {
-    int Lpt1_P[2] = { 244, begin_y};
+    int Lpt1_P[2] = { 244, begin_y };
 
     if (Lpt1_found && rpts1s_num >= 3) {
         int p[2];

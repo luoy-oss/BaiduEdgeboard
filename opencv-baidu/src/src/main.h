@@ -1,8 +1,8 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
-// #define CAR_SHOW
-#define CAR_SAVEIMG
+#define CAR_SHOW
+//#define CAR_SAVEIMG
 #define CAR_DEBUG
 //#define CIRCLE_DEBUG
 //#define CROSS_DEBUG
@@ -153,9 +153,6 @@ extern int circle_rptss_num;
 // L½Çµã
 extern int circle_Lpt_rptss_id;
 extern bool circle_Lpt_found;
-
-extern int maxWhiteCOL;
-extern int maxWhiteROW;
 
 extern int far_x1;
 extern int far_x2;
