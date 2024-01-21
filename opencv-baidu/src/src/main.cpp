@@ -167,6 +167,7 @@ int main() {
 	//VideoCapture cap(0);
 	std::string video = "lx.mp4";
 	video = "./video/result_best.mp4";
+	video = "./video/cross_half.mp4";
 	VideoCapture cap(video);
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
@@ -322,30 +323,24 @@ int main() {
 		check_garage();
 
 		// 分别检查十字 三叉 和圆环, 十字优先级最高
-		if (garage_type == GARAGE_NONE)
+		if (garage_type == GARAGE_NONE) {
 			check_cross();
+			check_Half();
+		}
+			
 		if (garage_type == GARAGE_NONE && cross_type == CROSS_NONE)
 			check_circle();
 		if (cross_type != CROSS_NONE) {
 			circle_type = CIRCLE_NONE;
 		}
+
 		//根据检查结果执行模式
-		if (cross_type != CROSS_NONE) {
-			if (cross_type == CROSS_BEGIN || cross_type == CROSS_IN) {
-				run_cross();
-			}
-			else if(cross_type == CROSS_BEGIN_HALF_LEFT ||
-					cross_type == CROSS_IN_HALF_LEFT	||
-					cross_type == CROSS_BEGIN_HALF_RIGHT||
-					cross_type == CROSS_IN_HALF_RIGHT	) {
-				run_cross_half();
-			}
-		}
+		if (cross_type != CROSS_NONE) run_cross();
 		if (circle_type != CIRCLE_NONE) run_circle();
 		if (garage_type != GARAGE_NONE) run_garage();
 
 		// 中线跟踪
-		if (cross_type != CROSS_IN) {
+		if (cross_type != CROSS_IN && cross_type != CROSS_HALF_LEFT && cross_type != CROSS_HALF_RIGHT) {
 			if (track_type == TRACK_LEFT) {
 				rpts = rptsc0;
 				rpts_num = rptsc0_num;
@@ -356,38 +351,20 @@ int main() {
 			}
 		}
 		else {
-			//cv::waitKey(400);
-			////十字根据远线控制
-			////float far_rpts0s[FAR_POINTS_MAX_LEN][2];
-			////float far_rpts1s[FAR_POINTS_MAX_LEN][2];
-			//int far_rpts_num = 10;
-			//for (int i = 1; i <= far_rpts_num; i++) {
-			//	int x1 = mid_x + (maxWhiteCOL - mid_x) * (1.0 * i / far_rpts_num);
-			//	int y1 = mid_y + (maxWhiteROW - mid_y) * (1.0 * i / far_rpts_num);
-
-			//	//int x2 = mid_x + (maxWhiteCOL - mid_x) * (1.0 * i / far_rpts_num);
-			//	//int y2 = mid_y + (maxWhiteROW - mid_y) * (1.0 * i / far_rpts_num);
-			//	//far_rpts0s[i - 1][0] = x1;
-			//	//far_rpts0s[i - 1][1] = y1;
-			//	//far_rpts1s[i - 1][0] = x2;
-			//	//far_rpts1s[i - 1][1] = y2;
-
-			//	rpts[i - 1][0] = x1;
-			//	rpts[i - 1][1] = y1;
-			//}
-			//rpts_num = far_rpts_num;
-
+			if (cross_type == CROSS_HALF_LEFT || cross_type == CROSS_HALF_RIGHT) {
+				waitKey(1000);
+			}
+			//十字根据远线控制
 			if (track_type == TRACK_LEFT) {
 				track_leftline(far_rpts0s + far_Lpt0_rpts0s_id, far_rpts0s_num - far_Lpt0_rpts0s_id, rpts,
 					(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
-				rpts_num = far_rpts0s_num - far_Lpt0_rpts0s_id;
+				rpts_num = clip(far_rpts0s_num - far_Lpt0_rpts0s_id, 0, far_rpts0s_num);
 			}
 			else {
 				track_rightline(far_rpts1s + far_Lpt1_rpts1s_id, far_rpts1s_num - far_Lpt1_rpts1s_id, rpts,
 					(int)round(angle_dist / sample_dist), pixel_per_meter * ROAD_WIDTH / 2);
-				rpts_num = far_rpts1s_num - far_Lpt1_rpts1s_id;
+				rpts_num = clip(far_rpts1s_num - far_Lpt1_rpts1s_id, 0, far_rpts1s_num);
 			}
-			
 		}
 
 		{
@@ -668,6 +645,52 @@ void debug_show() {
 				Point(0, maxWhiteROW),
 				Point(COLSIMAGE, maxWhiteROW), Scalar(255, 0, 0), 3);
 		}
+		/*cv::circle(imageCorrect, Point(far_x11, far_y11), 5, Scalar(0, 0, 255), -1);
+		line(imageCorrect,
+				Point(far_x11, far_y11),
+				Point(far_x11, ROWSIMAGE - 1), Scalar(0, 0, 255), 2);*/
+
+		cv::circle(imageCorrect, Point(far_x22, far_y22), 5, Scalar(0, 255, 0), -1);
+
+		line(imageCorrect,
+			Point(far_x22, far_y22),
+			Point(far_x22, ROWSIMAGE - 1), Scalar(0, 255, 0), 2);
+
+		if (cross_type == CROSS_HALF) {
+		}
+		else {
+			line(imageCorrect,
+				Point(far_x1, far_y1),
+				Point(far_x1, ROWSIMAGE - 1), Scalar(0, 0, 255), 3);
+
+			cv::circle(imageCorrect, Point(far_x2, far_y2), 10, Scalar(0, 255, 0), -1);
+
+			line(imageCorrect,
+				Point(far_x2, far_y2),
+				Point(far_x2, ROWSIMAGE - 1), Scalar(0, 255, 0), 3);
+		}
+
+		//if (Lpt0_found) {
+		//	int p[2];
+		//	map_inv(rpts0s[Lpt0_rpts0s_id], p);
+		//	p[0] -= 10;
+		//	cv::circle(imageCorrect, Point(p[0], p[1]), 10, Scalar(0, 0, 255), -1);
+
+		//	line(imageCorrect,
+		//		Point(p[0], p[1]),
+		//		Point(p[0], 0), Scalar(0, 0, 255), 3);
+		//}
+
+		//if (Lpt1_found) {
+		//	int p[2];
+		//	map_inv(rpts1s[Lpt1_rpts1s_id], p);
+		//	p[0] += 10;
+		//	cv::circle(imageCorrect, Point(p[0], p[1]), 10, Scalar(0, 255, 0), -1);
+
+		//	line(imageCorrect,
+		//		Point(p[0], p[1]),
+		//		Point(p[0], 0), Scalar(0, 255, 0), 3);
+		//}
 	}
 	else if (garage_type != GARAGE_NONE) {
 		COUT1(garage_type_name[garage_type]);
@@ -783,16 +806,17 @@ void debug_show() {
 		LINE_AA); // 显示赛道识别类型
 
 	
+	
 	for (int i = 0; i < ipts0_num; i++) {
-		int c = ipts0[i][0] * IMAGESCALE;
-		int r = ipts0[i][1] * IMAGESCALE;
+		int c = clip(ipts0[i][0] * IMAGESCALE, 0, COLSIMAGE - 1);
+		int r = clip(ipts0[i][1] * IMAGESCALE, 0, ROWSIMAGE - 1);
 		MAT_AT_SET(imageCorrect, r, c, 0, 0, 255);
 		
 	}
 
 	for (int i = 0; i < ipts1_num; i++) {
-		int c = ipts1[i][0] * IMAGESCALE;
-		int r = ipts1[i][1] * IMAGESCALE;
+		int c = clip(ipts1[i][0] * IMAGESCALE, 0, COLSIMAGE - 1);
+		int r = clip(ipts1[i][1] * IMAGESCALE, 0, ROWSIMAGE - 1);
 		MAT_AT_SET(imageCorrect, r, c, 0, 255, 0);
 		//imageCorrect.at<Vec3b>(r, c)[0] = 0;
 		//imageCorrect.at<Vec3b>(r, c)[1] = 255;
@@ -800,8 +824,8 @@ void debug_show() {
 	}
 	
 	for (int i = 0; i < circle_ipts_num; i++) {
-		int c = circle_ipts[i][0] * IMAGESCALE;
-		int r = circle_ipts[i][1] * IMAGESCALE;
+		int c = clip(circle_ipts[i][0] * IMAGESCALE, 0, COLSIMAGE - 1);
+		int r = clip(circle_ipts[i][1] * IMAGESCALE, 0, ROWSIMAGE - 1);
 		//MAT_AT_SET(imageCorrect, r, c, 0, 125, 125);
 		cv::circle(imageCorrect, Point(c, r), 1, Scalar(0, 215, 255));
 	}

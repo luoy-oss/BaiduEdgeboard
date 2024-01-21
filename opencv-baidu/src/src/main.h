@@ -1,8 +1,9 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
-#define CAR_DEBUG
+// #define CAR_SHOW
 #define CAR_SAVEIMG
+#define CAR_DEBUG
 //#define CIRCLE_DEBUG
 //#define CROSS_DEBUG
 //#define GARAGE_DEBUG
@@ -44,7 +45,7 @@ extern bool track_left;
 extern float angle;
 
 #define ROAD_WIDTH      (0.45)
-#define POINTS_MAX_LEN  (ROWSIMAGE/IMAGESCALE)
+#define POINTS_MAX_LEN  (ROWSIMAGE)
 
 #define FAR_POINTS_MAX_LEN  (POINTS_MAX_LEN)
 
@@ -155,4 +156,13 @@ extern bool circle_Lpt_found;
 
 extern int maxWhiteCOL;
 extern int maxWhiteROW;
+
+extern int far_x1;
+extern int far_x2;
+extern int far_y1;
+extern int far_y2;
+extern int far_x11;
+extern int far_x22;
+extern int far_y11;
+extern int far_y22;
 #endif //! __MAIN_H__
