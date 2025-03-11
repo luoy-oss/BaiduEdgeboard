@@ -36,3 +36,12 @@
 /opencv-baidu/opencv-baidu.vcxproj.user
 /opencv-baidu/opencv-baidu.vcxproj.filters
 /opencv-baidu/opencv-baidu.vcxproj
+
+.vs/
+.vscode/
+/build/*
+/res/model/*
+!/res/model/yolov3_mobilenet_v1
+# *.jpg
+# *.mp4
+*年*月*日*.json

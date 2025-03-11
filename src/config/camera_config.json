@@ -1,0 +1,24 @@
+{
+    "WHITE_BALANCE_TEMPERATURE": 4000,
+	"BRIGHTNESS": 30,
+	"CONTRAST": 32,
+	"SATURATION": 50,
+	"HUE": 0,
+	"SHARPNESS": 0,
+	"BACKLIGHT_COMPENSATION": 3,
+	"GAMMA": 72,
+	"EXPOSURE_ABSOLUTE": 75,
+	"record": [
+		{
+			"#WHITE_BALANCE_TEMPERATURE": "白平衡 默认值4000",
+			"#BRIGHTNESS": "亮度 默认值-30",
+			"#CONTRAST": "对比度 默认值32",
+			"#SATURATION": "饱和度 默认值60",
+			"#HUE": "色度 默认值0",
+			"#SHARPNESS": "锐度 默认值0",
+			"#BACKLIGHT_COMPENSATION": "背光补偿 默认值3",
+			"#GAMMA": "伽马 默认值72",
+			"#EXPOSURE_ABSOLUTE": "曝光绝对值 默认值75 (不建议修改)"
+		}
+	]	
+}
